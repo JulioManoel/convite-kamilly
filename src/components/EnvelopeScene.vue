@@ -1,13 +1,86 @@
 <script setup>
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
+
+const OPEN_SEQUENCE_MS = 3200
+const MOBILE_QUERY = '(max-width: 768px)'
 
 const phase = ref('idle') // idle | open
+const isExpanded = ref(false)
+const letterSheetRef = ref(null)
 
 const isOpen = computed(() => phase.value === 'open')
+
+let expandTimer = 0
+
+function clearExpandTimer() {
+  if (expandTimer) {
+    window.clearTimeout(expandTimer)
+    expandTimer = 0
+  }
+}
+
+async function expandInviteFullscreen() {
+  const sheet = letterSheetRef.value
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+  if (!sheet || reduceMotion) {
+    isExpanded.value = true
+    return
+  }
+
+  const first = sheet.getBoundingClientRect()
+  isExpanded.value = true
+  await nextTick()
+  await new Promise((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(resolve))
+  })
+
+  const last = sheet.getBoundingClientRect()
+  if (!last.width || !last.height) return
+
+  const dx = first.left - last.left
+  const dy = first.top - last.top
+  const sx = first.width / last.width
+  const sy = first.height / last.height
+
+  sheet.style.transformOrigin = 'top left'
+  sheet.style.transition = 'none'
+  sheet.style.transform = `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`
+
+  // Force reflow so the browser registers the starting transform
+  void sheet.offsetWidth
+
+  sheet.style.transition = 'transform 0.95s cubic-bezier(0.22, 1, 0.36, 1)'
+  sheet.style.transform = 'translate(0px, 0px) scale(1, 1)'
+
+  const clearInline = () => {
+    sheet.style.transition = ''
+    sheet.style.transform = ''
+    sheet.style.transformOrigin = ''
+    sheet.removeEventListener('transitionend', onEnd)
+  }
+
+  const onEnd = (event) => {
+    if (event.propertyName !== 'transform') return
+    clearInline()
+  }
+
+  sheet.addEventListener('transitionend', onEnd)
+}
+
+function scheduleMobileExpand() {
+  clearExpandTimer()
+  if (!window.matchMedia(MOBILE_QUERY).matches) return
+
+  expandTimer = window.setTimeout(() => {
+    expandInviteFullscreen()
+  }, OPEN_SEQUENCE_MS)
+}
 
 function openEnvelope() {
   if (phase.value !== 'idle') return
   phase.value = 'open'
+  scheduleMobileExpand()
 }
 
 function onKeydown(event) {
@@ -23,11 +96,12 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('keydown', onKeydown)
+  clearExpandTimer()
 })
 </script>
 
 <template>
-  <main class="scene" :class="{ 'is-open': isOpen }">
+  <main class="scene" :class="{ 'is-open': isOpen, 'is-expanded': isExpanded }">
     <header class="intro" :class="{ 'is-hidden': isOpen }">
       <p class="intro-label">Para você</p>
       <h1 class="brand">Kamilly</h1>
@@ -56,29 +130,35 @@ onUnmounted(() => {
             <span class="seal-core">K</span>
           </div>
 
-          <div class="letter-mouth" :class="{ open: isOpen }">
-            <article class="letter" :class="{ open: isOpen }" aria-live="polite">
-              <div class="letter-sheet">
-                <div class="invitation-glow" aria-hidden="true" />
-                <p class="invite-eyebrow">Você está convidado</p>
-                <h2 class="invite-name">Kamilly</h2>
-                <div class="invite-ornament" aria-hidden="true">
-                  <span />
-                  <i />
-                  <span />
+          <Teleport to="body" :disabled="!isExpanded">
+            <div class="letter-mouth" :class="{ open: isOpen, expanded: isExpanded }">
+              <article
+                class="letter"
+                :class="{ open: isOpen, expanded: isExpanded }"
+                aria-live="polite"
+              >
+                <div ref="letterSheetRef" class="letter-sheet">
+                  <div class="invitation-glow" aria-hidden="true" />
+                  <p class="invite-eyebrow">Você está convidado</p>
+                  <h2 class="invite-name">Kamilly</h2>
+                  <div class="invite-ornament" aria-hidden="true">
+                    <span />
+                    <i />
+                    <span />
+                  </div>
+                  <p class="invite-message">
+                    Com muito carinho, convido você para celebrar este momento especial ao meu lado.
+                  </p>
+                  <div class="invite-details">
+                    <p><strong>Data</strong><span>Sábado, 15 de agosto</span></p>
+                    <p><strong>Horário</strong><span>16h00</span></p>
+                    <p><strong>Local</strong><span>Espaço a confirmar</span></p>
+                  </div>
+                  <p class="invite-closing">Espero por você</p>
                 </div>
-                <p class="invite-message">
-                  Com muito carinho, convido você para celebrar este momento especial ao meu lado.
-                </p>
-                <div class="invite-details">
-                  <p><strong>Data</strong><span>Sábado, 15 de agosto</span></p>
-                  <p><strong>Horário</strong><span>16h00</span></p>
-                  <p><strong>Local</strong><span>Espaço a confirmar</span></p>
-                </div>
-                <p class="invite-closing">Espero por você</p>
-              </div>
-            </article>
-          </div>
+              </article>
+            </div>
+          </Teleport>
         </div>
       </div>
     </div>
@@ -610,7 +690,7 @@ onUnmounted(() => {
   }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 768px) {
   .stage {
     height: min(84vh, 640px);
   }
@@ -620,13 +700,82 @@ onUnmounted(() => {
     height: 186px;
   }
 
-  .letter-mouth {
+  .letter-mouth:not(.expanded) {
     width: 97%;
     max-width: 280px;
   }
 
   .letter-sheet {
     padding: 1.7rem 1.2rem 1.5rem;
+  }
+
+  /* Fullscreen invite — teleported to body so it escapes stage perspective */
+  .letter-mouth.open.expanded {
+    position: fixed;
+    inset: 0;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 1000;
+    width: 100vw;
+    max-width: none;
+    height: 100%;
+    height: 100dvh;
+    transform: none;
+    overflow: auto;
+    visibility: visible;
+    pointer-events: auto;
+    animation: none;
+    display: block;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .letter.open.expanded {
+    position: relative;
+    left: auto;
+    right: auto;
+    bottom: auto;
+    width: 100%;
+    min-height: 100%;
+    min-height: 100dvh;
+    transform: none;
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    animation: none;
+  }
+
+  .letter.open.expanded .letter-sheet {
+    width: 100%;
+    min-height: 100%;
+    min-height: 100dvh;
+    border-radius: 0;
+    border: none;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding:
+      max(2.2rem, env(safe-area-inset-top, 0px))
+      max(1.35rem, env(safe-area-inset-right, 0px))
+      max(2.2rem, env(safe-area-inset-bottom, 0px))
+      max(1.35rem, env(safe-area-inset-left, 0px));
+    box-shadow: none;
+    will-change: transform;
+  }
+
+  .scene.is-expanded {
+    overflow: hidden;
+    padding: 0;
+  }
+
+  .scene.is-expanded .stage {
+    perspective: none;
+  }
+
+  .scene.is-expanded .envelope {
+    transform: none;
+    transform-style: flat;
   }
 }
 
