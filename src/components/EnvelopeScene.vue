@@ -691,8 +691,30 @@ onUnmounted(() => {
 }
 
 @media (max-width: 768px) {
+  .scene {
+    min-height: 100%;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: center;
+    padding:
+      1.5rem
+      1.25rem
+      max(12.5rem, calc(env(safe-area-inset-bottom, 0px) + 10.25rem));
+  }
+
+  .intro {
+    top: clamp(8.5rem, 28vh, 12rem);
+  }
+
   .stage {
-    height: min(84vh, 640px);
+    width: 100%;
+    height: auto;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    flex: 0 0 auto;
   }
 
   .envelope-stage {
