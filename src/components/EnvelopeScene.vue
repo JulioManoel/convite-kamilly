@@ -353,39 +353,45 @@ onUnmounted(() => {
   animation: lining-show 0.2s ease 0.2s forwards;
 }
 
-/* Portal above the envelope mouth: letter is clipped until it exits */
+/* Letter rises behind the pocket, filling the full V opening */
 .letter-mouth {
+  --exit-room: min(72vh, 540px);
+  --tuck: 220px;
   position: absolute;
   left: 50%;
-  bottom: 100%;
-  z-index: 6;
-  width: 96%;
-  max-width: 292px;
-  height: min(72vh, 540px);
+  bottom: 0;
+  z-index: 2;
+  width: 90%;
+  max-width: 280px;
+  height: calc(100% + var(--exit-room));
   transform: translateX(-50%);
   overflow: hidden;
   pointer-events: none;
+  visibility: hidden;
 }
 
 .letter-mouth.open {
+  visibility: visible;
   pointer-events: auto;
-  animation: mouth-cover 0.55s cubic-bezier(0.22, 1, 0.36, 1) 1.85s forwards;
+  animation: mouth-cover 0.55s cubic-bezier(0.22, 1, 0.36, 1) 2.2s forwards;
 }
 
 .letter {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 0;
+  /* Rest line = envelope top; tucked fully below until exit starts */
+  bottom: calc(100% - var(--exit-room));
   width: 100%;
-  transform: translateY(100%);
-  opacity: 1;
+  transform: translateY(calc(100% + var(--tuck)));
+  opacity: 0;
+  visibility: hidden;
   pointer-events: none;
 }
 
 .letter.open {
   pointer-events: auto;
-  animation: letter-exit 1.35s cubic-bezier(0.22, 1, 0.36, 1) 0.5s forwards;
+  animation: letter-exit 1.6s cubic-bezier(0.22, 1, 0.36, 1) 0.55s both;
 }
 
 .letter-sheet {
@@ -710,17 +716,26 @@ onUnmounted(() => {
 
 @keyframes letter-exit {
   0% {
-    transform: translateY(100%);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(calc(100% + var(--tuck)));
+  }
+  4% {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(calc(100% + var(--tuck)));
   }
   100% {
+    opacity: 1;
+    visibility: visible;
     transform: translateY(0);
   }
 }
 
 @keyframes mouth-cover {
   0% {
-    bottom: 100%;
-    z-index: 6;
+    bottom: 0;
+    z-index: 2;
   }
   100% {
     bottom: -48%;
