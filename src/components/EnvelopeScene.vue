@@ -28,14 +28,6 @@ onUnmounted(() => {
 
 <template>
   <main class="scene" :class="{ 'is-open': isOpen }">
-    <div class="atmosphere" aria-hidden="true">
-      <span class="orb orb-a" />
-      <span class="orb orb-b" />
-      <span class="petal petal-1" />
-      <span class="petal petal-2" />
-      <span class="petal petal-3" />
-    </div>
-
     <header class="intro" :class="{ 'is-hidden': isOpen }">
       <p class="intro-label">Para você</p>
       <h1 class="brand">Kamilly</h1>
@@ -62,13 +54,6 @@ onUnmounted(() => {
           <div class="seal" aria-hidden="true">
             <span class="seal-ring" />
             <span class="seal-core">K</span>
-          </div>
-
-          <div class="hearts" aria-hidden="true">
-            <span class="heart a1" />
-            <span class="heart a2" />
-            <span class="heart a3" />
-            <span class="heart a4" />
           </div>
 
           <div class="letter-mouth" :class="{ open: isOpen }">
@@ -108,68 +93,6 @@ onUnmounted(() => {
   place-items: center;
   padding: 2.5rem 1.25rem 3rem;
   overflow: hidden;
-}
-
-.atmosphere {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  overflow: hidden;
-}
-
-.orb {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(40px);
-  opacity: 0.55;
-  animation: drift 12s ease-in-out infinite;
-}
-
-.orb-a {
-  width: 280px;
-  height: 280px;
-  top: 8%;
-  left: 12%;
-  background: rgba(232, 180, 188, 0.55);
-}
-
-.orb-b {
-  width: 320px;
-  height: 320px;
-  right: 8%;
-  bottom: 10%;
-  background: rgba(197, 212, 216, 0.5);
-  animation-delay: -4s;
-}
-
-.petal {
-  position: absolute;
-  width: 18px;
-  height: 28px;
-  border-radius: 60% 60% 55% 55%;
-  background: linear-gradient(160deg, #f0c8ce, #d89aa4);
-  opacity: 0.35;
-  animation: fall 16s linear infinite;
-}
-
-.petal-1 {
-  left: 18%;
-}
-
-.petal-2 {
-  left: 62%;
-  width: 14px;
-  height: 22px;
-  animation-delay: -6s;
-  animation-duration: 18s;
-}
-
-.petal-3 {
-  left: 82%;
-  width: 12px;
-  height: 20px;
-  animation-delay: -11s;
-  animation-duration: 20s;
 }
 
 .intro {
@@ -473,84 +396,6 @@ onUnmounted(() => {
   animation: seal-break 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
-.hearts {
-  position: absolute;
-  top: 50%;
-  left: 0;
-  right: 0;
-  z-index: 7;
-  height: 0;
-  pointer-events: none;
-}
-
-.envelope.open .hearts {
-  animation: shell-fade 0.4s ease 2.2s forwards;
-}
-
-.heart {
-  position: absolute;
-  bottom: 0;
-  width: 18px;
-  height: 18px;
-  opacity: 0;
-}
-
-.heart::before,
-.heart::after {
-  position: absolute;
-  content: '';
-  top: 0;
-  width: 18px;
-  height: 28px;
-  background: var(--blush-deep);
-  border-radius: 18px 18px 0 0;
-}
-
-.heart::before {
-  left: 18px;
-  transform: rotate(-45deg);
-  transform-origin: 0 100%;
-}
-
-.heart::after {
-  left: 0;
-  transform: rotate(45deg);
-  transform-origin: 100% 100%;
-  background: var(--rose-seal);
-}
-
-.envelope.open .heart.a1 {
-  left: 18%;
-  transform: scale(0.55);
-  animation:
-    heart-rise 3.8s linear 0.25s forwards,
-    heart-sway 1.8s ease-in-out 0.25s 4 alternate;
-}
-
-.envelope.open .heart.a2 {
-  left: 48%;
-  transform: scale(0.9);
-  animation:
-    heart-rise 4.6s linear 0.4s forwards,
-    heart-sway 2.4s ease-in-out 0.4s 3 alternate;
-}
-
-.envelope.open .heart.a3 {
-  left: 72%;
-  transform: scale(0.7);
-  animation:
-    heart-rise 5.2s linear 0.3s forwards,
-    heart-sway 1.6s ease-in-out 0.3s 5 alternate;
-}
-
-.envelope.open .heart.a4 {
-  left: 32%;
-  transform: scale(0.45);
-  animation:
-    heart-rise 4.2s linear 0.5s forwards,
-    heart-sway 2s ease-in-out 0.5s 4 alternate;
-}
-
 .invite-eyebrow {
   position: relative;
   font-family: 'Outfit', sans-serif;
@@ -672,30 +517,6 @@ onUnmounted(() => {
   }
 }
 
-@keyframes drift {
-  0%,
-  100% {
-    transform: translate(0, 0);
-  }
-  50% {
-    transform: translate(18px, -14px);
-  }
-}
-
-@keyframes fall {
-  0% {
-    transform: translateY(-10vh) rotate(0deg);
-    opacity: 0;
-  }
-  10% {
-    opacity: 0.35;
-  }
-  100% {
-    transform: translateY(110vh) rotate(220deg);
-    opacity: 0;
-  }
-}
-
 @keyframes spin-slow {
   to {
     transform: rotate(360deg);
@@ -789,29 +610,6 @@ onUnmounted(() => {
   }
 }
 
-@keyframes heart-rise {
-  0% {
-    bottom: 0;
-    opacity: 0;
-  }
-  12% {
-    opacity: 0.9;
-  }
-  100% {
-    bottom: 520px;
-    opacity: 0;
-  }
-}
-
-@keyframes heart-sway {
-  0% {
-    margin-left: 0;
-  }
-  100% {
-    margin-left: 36px;
-  }
-}
-
 @media (max-width: 480px) {
   .stage {
     height: min(84vh, 640px);
@@ -836,10 +634,7 @@ onUnmounted(() => {
   .envelope,
   .envelope-shadow,
   .intro-hint,
-  .orb,
-  .petal,
-  .seal-ring,
-  .heart {
+  .seal-ring {
     animation: none !important;
   }
 
@@ -849,8 +644,7 @@ onUnmounted(() => {
   .envelope.open .envelope-body,
   .envelope.open .front,
   .envelope.open .envelope-shadow,
-  .envelope.open .seal,
-  .envelope.open .hearts {
+  .envelope.open .seal {
     animation-duration: 0.01ms !important;
     animation-delay: 0s !important;
   }

@@ -40,11 +40,7 @@ body {
   font-family: 'Outfit', sans-serif;
   color: var(--ink);
   overflow-x: hidden;
-  background:
-    radial-gradient(ellipse 90% 70% at 50% 20%, rgba(232, 180, 188, 0.45), transparent 55%),
-    radial-gradient(ellipse 70% 50% at 80% 80%, rgba(197, 212, 216, 0.55), transparent 50%),
-    radial-gradient(ellipse 60% 45% at 15% 75%, rgba(216, 224, 220, 0.5), transparent 45%),
-    linear-gradient(165deg, #eef2f0 0%, #e8dde0 42%, #d5e0e2 100%);
+  background: #fff;
 }
 
 button {
