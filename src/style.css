@@ -1,0 +1,55 @@
+:root {
+  --ink: #2a2430;
+  --ink-soft: #5c5363;
+  --blush: #e8b4bc;
+  --blush-deep: #c47a88;
+  --rose-seal: #a85a6a;
+  --gold: #c9a46c;
+  --gold-soft: #e2c99a;
+  --paper: #f7f2ee;
+  --paper-edge: #ebe3dc;
+  --envelope: #8a9a9e;
+  --envelope-dark: #6d7c80;
+  --envelope-lining: #d4a0a8;
+  --mist: #d8e0dc;
+  --sky: #c5d4d8;
+  --shadow: rgba(42, 36, 48, 0.28);
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#app {
+  min-height: 100%;
+  height: 100%;
+}
+
+body {
+  font-family: 'Outfit', sans-serif;
+  color: var(--ink);
+  overflow-x: hidden;
+  background:
+    radial-gradient(ellipse 90% 70% at 50% 20%, rgba(232, 180, 188, 0.45), transparent 55%),
+    radial-gradient(ellipse 70% 50% at 80% 80%, rgba(197, 212, 216, 0.55), transparent 50%),
+    radial-gradient(ellipse 60% 45% at 15% 75%, rgba(216, 224, 220, 0.5), transparent 45%),
+    linear-gradient(165deg, #eef2f0 0%, #e8dde0 42%, #d5e0e2 100%);
+}
+
+button {
+  font: inherit;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
