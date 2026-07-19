@@ -44,16 +44,18 @@ onUnmounted(() => {
 
     <div class="stage">
       <div class="envelope-stage" :class="{ opened: isOpen }">
-        <button
+        <div
           class="envelope"
-          type="button"
+          role="button"
+          tabindex="0"
           :class="{ open: isOpen, close: !isOpen }"
-          :disabled="isOpen"
           :aria-label="isOpen ? 'Carta aberta' : 'Abrir carta'"
+          :aria-disabled="isOpen ? 'true' : undefined"
           @click="openEnvelope"
         >
           <div class="envelope-shadow" />
           <div class="envelope-body" />
+
           <div class="front pocket" aria-hidden="true" />
           <div class="front flap" aria-hidden="true" />
 
@@ -68,30 +70,32 @@ onUnmounted(() => {
             <span class="heart a3" />
             <span class="heart a4" />
           </div>
-        </button>
-      </div>
 
-      <article class="letter" :class="{ open: isOpen }" aria-live="polite">
-        <div class="letter-sheet">
-          <div class="invitation-glow" aria-hidden="true" />
-          <p class="invite-eyebrow">Você está convidado</p>
-          <h2 class="invite-name">Kamilly</h2>
-          <div class="invite-ornament" aria-hidden="true">
-            <span />
-            <i />
-            <span />
+          <div class="letter-mouth" :class="{ open: isOpen }">
+            <article class="letter" :class="{ open: isOpen }" aria-live="polite">
+              <div class="letter-sheet">
+                <div class="invitation-glow" aria-hidden="true" />
+                <p class="invite-eyebrow">Você está convidado</p>
+                <h2 class="invite-name">Kamilly</h2>
+                <div class="invite-ornament" aria-hidden="true">
+                  <span />
+                  <i />
+                  <span />
+                </div>
+                <p class="invite-message">
+                  Com muito carinho, convido você para celebrar este momento especial ao meu lado.
+                </p>
+                <div class="invite-details">
+                  <p><strong>Data</strong><span>Sábado, 15 de agosto</span></p>
+                  <p><strong>Horário</strong><span>16h00</span></p>
+                  <p><strong>Local</strong><span>Espaço a confirmar</span></p>
+                </div>
+                <p class="invite-closing">Espero por você</p>
+              </div>
+            </article>
           </div>
-          <p class="invite-message">
-            Com muito carinho, convido você para celebrar este momento especial ao meu lado.
-          </p>
-          <div class="invite-details">
-            <p><strong>Data</strong><span>Sábado, 15 de agosto</span></p>
-            <p><strong>Horário</strong><span>16h00</span></p>
-            <p><strong>Local</strong><span>Espaço a confirmar</span></p>
-          </div>
-          <p class="invite-closing">Espero por você</p>
         </div>
-      </article>
+      </div>
     </div>
   </main>
 </template>
@@ -230,7 +234,6 @@ onUnmounted(() => {
 }
 
 .envelope-stage.opened {
-  animation: shell-fade 0.55s ease 0.7s forwards;
   pointer-events: none;
 }
 
@@ -239,6 +242,7 @@ onUnmounted(() => {
   width: 100%;
   height: 100%;
   padding: 0;
+  border: none;
   border-bottom-left-radius: 8px;
   border-bottom-right-radius: 8px;
   background: linear-gradient(160deg, #758588 0%, var(--envelope-dark) 100%);
@@ -256,11 +260,11 @@ onUnmounted(() => {
   box-shadow: none;
 }
 
-.envelope:not(:disabled):hover {
+.envelope:not(.open):hover {
   transform: translateY(-4px);
 }
 
-.envelope:not(:disabled):focus-visible {
+.envelope:not(.open):focus-visible {
   outline: 2px solid var(--gold);
   outline-offset: 10px;
 }
@@ -279,12 +283,14 @@ onUnmounted(() => {
 }
 
 .envelope.open .envelope-shadow {
-  animation: shell-fade 0.55s ease 0.75s forwards;
+  animation: none;
+  opacity: 0.55;
 }
 
 .envelope-body {
   position: absolute;
   inset: 0;
+  z-index: 1;
   border-radius: inherit;
   background:
     linear-gradient(145deg, #9aa9ad 0%, var(--envelope) 45%, var(--envelope-dark) 100%);
@@ -292,7 +298,7 @@ onUnmounted(() => {
 }
 
 .envelope.open .envelope-body {
-  animation: shell-fade 0.55s ease 0.75s forwards;
+  animation: none;
 }
 
 .front {
@@ -304,7 +310,7 @@ onUnmounted(() => {
 }
 
 .envelope.open .front {
-  animation: shell-fade 0.55s ease 0.75s forwards;
+  animation: none;
 }
 
 .pocket {
@@ -329,9 +335,7 @@ onUnmounted(() => {
 
 .envelope.open .flap {
   z-index: 1;
-  animation:
-    flap-open 0.4s ease forwards,
-    shell-fade 0.55s ease 0.75s forwards;
+  animation: flap-open 0.55s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
 .flap::after {
@@ -346,25 +350,42 @@ onUnmounted(() => {
 }
 
 .envelope.open .flap::after {
-  animation: lining-show 0.2s ease 0.12s forwards;
+  animation: lining-show 0.2s ease 0.2s forwards;
+}
+
+/* Portal above the envelope mouth: letter is clipped until it exits */
+.letter-mouth {
+  position: absolute;
+  left: 50%;
+  bottom: 100%;
+  z-index: 6;
+  width: 96%;
+  max-width: 292px;
+  height: min(72vh, 540px);
+  transform: translateX(-50%);
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.letter-mouth.open {
+  pointer-events: auto;
+  animation: mouth-cover 0.55s cubic-bezier(0.22, 1, 0.36, 1) 1.85s forwards;
 }
 
 .letter {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  z-index: 2;
-  width: min(84vw, 292px);
-  transform: translate(-50%, 18%);
-  opacity: 0;
-  visibility: hidden;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  transform: translateY(100%);
+  opacity: 1;
   pointer-events: none;
 }
 
 .letter.open {
-  z-index: 10;
   pointer-events: auto;
-  animation: letter-reveal 1.2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: letter-exit 1.35s cubic-bezier(0.22, 1, 0.36, 1) 0.5s forwards;
 }
 
 .letter-sheet {
@@ -439,7 +460,8 @@ onUnmounted(() => {
 }
 
 .envelope.open .seal {
-  animation: seal-break 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  z-index: 4;
+  animation: seal-break 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 .hearts {
@@ -447,13 +469,13 @@ onUnmounted(() => {
   top: 50%;
   left: 0;
   right: 0;
-  z-index: 4;
+  z-index: 7;
   height: 0;
   pointer-events: none;
 }
 
 .envelope.open .hearts {
-  animation: shell-fade 0.4s ease 0.85s forwards;
+  animation: shell-fade 0.4s ease 0.9s forwards;
 }
 
 .heart {
@@ -686,21 +708,23 @@ onUnmounted(() => {
   }
 }
 
-@keyframes letter-reveal {
+@keyframes letter-exit {
   0% {
-    opacity: 0;
-    visibility: hidden;
-    transform: translate(-50%, 22%);
-  }
-  12% {
-    opacity: 1;
-    visibility: visible;
-    transform: translate(-50%, 8%);
+    transform: translateY(100%);
   }
   100% {
-    opacity: 1;
-    visibility: visible;
-    transform: translate(-50%, -50%) scale(1.02);
+    transform: translateY(0);
+  }
+}
+
+@keyframes mouth-cover {
+  0% {
+    bottom: 100%;
+    z-index: 6;
+  }
+  100% {
+    bottom: -48%;
+    z-index: 10;
   }
 }
 
@@ -761,8 +785,9 @@ onUnmounted(() => {
     height: 186px;
   }
 
-  .letter {
-    width: min(88vw, 280px);
+  .letter-mouth {
+    width: 97%;
+    max-width: 280px;
   }
 
   .letter-sheet {
@@ -782,13 +807,10 @@ onUnmounted(() => {
   }
 
   .letter.open,
+  .letter-mouth.open,
   .envelope.open .flap,
-  .envelope.open .envelope-body,
-  .envelope.open .front,
-  .envelope.open .envelope-shadow,
   .envelope.open .seal,
-  .envelope.open .hearts,
-  .envelope-stage.opened {
+  .envelope.open .hearts {
     animation-duration: 0.01ms !important;
     animation-delay: 0s !important;
   }
