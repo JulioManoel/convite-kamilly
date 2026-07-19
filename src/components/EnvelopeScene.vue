@@ -54,29 +54,6 @@ onUnmounted(() => {
         >
           <div class="envelope-shadow" />
           <div class="envelope-body" />
-
-          <article class="letter" aria-live="polite">
-            <div class="letter-sheet">
-              <div class="invitation-glow" aria-hidden="true" />
-              <p class="invite-eyebrow">Você está convidado</p>
-              <h2 class="invite-name">Kamilly</h2>
-              <div class="invite-ornament" aria-hidden="true">
-                <span />
-                <i />
-                <span />
-              </div>
-              <p class="invite-message">
-                Com muito carinho, convido você para celebrar este momento especial ao meu lado.
-              </p>
-              <div class="invite-details">
-                <p><strong>Data</strong><span>Sábado, 15 de agosto</span></p>
-                <p><strong>Horário</strong><span>16h00</span></p>
-                <p><strong>Local</strong><span>Espaço a confirmar</span></p>
-              </div>
-              <p class="invite-closing">Espero por você</p>
-            </div>
-          </article>
-
           <div class="front pocket" aria-hidden="true" />
           <div class="front flap" aria-hidden="true" />
 
@@ -93,6 +70,28 @@ onUnmounted(() => {
           </div>
         </button>
       </div>
+
+      <article class="letter" :class="{ open: isOpen }" aria-live="polite">
+        <div class="letter-sheet">
+          <div class="invitation-glow" aria-hidden="true" />
+          <p class="invite-eyebrow">Você está convidado</p>
+          <h2 class="invite-name">Kamilly</h2>
+          <div class="invite-ornament" aria-hidden="true">
+            <span />
+            <i />
+            <span />
+          </div>
+          <p class="invite-message">
+            Com muito carinho, convido você para celebrar este momento especial ao meu lado.
+          </p>
+          <div class="invite-details">
+            <p><strong>Data</strong><span>Sábado, 15 de agosto</span></p>
+            <p><strong>Horário</strong><span>16h00</span></p>
+            <p><strong>Local</strong><span>Espaço a confirmar</span></p>
+          </div>
+          <p class="invite-closing">Espero por você</p>
+        </div>
+      </article>
     </div>
   </main>
 </template>
@@ -227,10 +226,12 @@ onUnmounted(() => {
   position: relative;
   width: min(88vw, 300px);
   height: 200px;
+  z-index: 1;
 }
 
 .envelope-stage.opened {
-  animation: stage-settle 1.35s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: shell-fade 0.55s ease 0.7s forwards;
+  pointer-events: none;
 }
 
 .envelope {
@@ -350,21 +351,20 @@ onUnmounted(() => {
 
 .letter {
   position: absolute;
-  left: 4%;
-  right: 4%;
-  top: 0;
+  top: 50%;
+  left: 50%;
   z-index: 2;
-  transform: translateY(55%);
+  width: min(84vw, 292px);
+  transform: translate(-50%, 18%);
   opacity: 0;
   visibility: hidden;
-  transform-origin: center bottom;
   pointer-events: none;
 }
 
-.envelope.open .letter {
+.letter.open {
   z-index: 10;
   pointer-events: auto;
-  animation: letter-reveal 1.25s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: letter-reveal 1.2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 .letter-sheet {
@@ -690,22 +690,17 @@ onUnmounted(() => {
   0% {
     opacity: 0;
     visibility: hidden;
-    transform: translateY(55%);
+    transform: translate(-50%, 22%);
   }
-  8% {
+  12% {
     opacity: 1;
     visibility: visible;
-    transform: translateY(35%);
-  }
-  55% {
-    opacity: 1;
-    visibility: visible;
-    transform: translateY(-118%);
+    transform: translate(-50%, 8%);
   }
   100% {
     opacity: 1;
     visibility: visible;
-    transform: translateY(-138%) scale(1.05);
+    transform: translate(-50%, -50%) scale(1.02);
   }
 }
 
@@ -715,18 +710,6 @@ onUnmounted(() => {
   }
   to {
     opacity: 0;
-  }
-}
-
-@keyframes stage-settle {
-  0% {
-    transform: translateY(0);
-  }
-  45% {
-    transform: translateY(95px);
-  }
-  100% {
-    transform: translateY(42px);
   }
 }
 
@@ -778,39 +761,8 @@ onUnmounted(() => {
     height: 186px;
   }
 
-  @keyframes letter-reveal {
-    0% {
-      opacity: 0;
-      visibility: hidden;
-      transform: translateY(55%);
-    }
-    8% {
-      opacity: 1;
-      visibility: visible;
-      transform: translateY(35%);
-    }
-    55% {
-      opacity: 1;
-      visibility: visible;
-      transform: translateY(-112%);
-    }
-    100% {
-      opacity: 1;
-      visibility: visible;
-      transform: translateY(-130%) scale(1.03);
-    }
-  }
-
-  @keyframes stage-settle {
-    0% {
-      transform: translateY(0);
-    }
-    45% {
-      transform: translateY(105px);
-    }
-    100% {
-      transform: translateY(48px);
-    }
+  .letter {
+    width: min(88vw, 280px);
   }
 
   .letter-sheet {
@@ -829,7 +781,7 @@ onUnmounted(() => {
     animation: none !important;
   }
 
-  .envelope.open .letter,
+  .letter.open,
   .envelope.open .flap,
   .envelope.open .envelope-body,
   .envelope.open .front,
