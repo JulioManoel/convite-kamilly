@@ -376,10 +376,15 @@ onUnmounted(() => {
   top: 5%;
   height: 90%;
   z-index: 1;
-  transform: translateY(0);
+  /* Fully tucked inside - no paper visible while closed */
+  transform: translateY(42%);
+  opacity: 0;
+  visibility: hidden;
   transform-origin: center bottom;
   transition:
     transform 0.45s ease,
+    opacity 0.2s ease,
+    visibility 0.2s ease,
     z-index 1s,
     height 0.01s linear;
   pointer-events: none;
@@ -388,8 +393,12 @@ onUnmounted(() => {
 .envelope.open .letter {
   z-index: 2;
   transform: translateY(-48%);
+  opacity: 1;
+  visibility: visible;
   transition:
     transform 0.55s 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.25s 0.35s ease,
+    visibility 0s 0.35s,
     z-index 0.6s,
     height 0.01s linear;
   pointer-events: auto;
@@ -399,9 +408,13 @@ onUnmounted(() => {
   height: auto;
   min-height: 100%;
   z-index: 6;
+  opacity: 1;
+  visibility: visible;
   transform: translateY(calc(-112% - 12px)) scale(1.06);
   transition:
     transform 0.95s 0.1s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.2s ease,
+    visibility 0s,
     z-index 0.2s,
     height 0.01s linear 0.15s;
 }
