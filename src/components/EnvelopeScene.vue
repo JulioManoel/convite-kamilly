@@ -283,8 +283,7 @@ onUnmounted(() => {
 }
 
 .envelope.open .envelope-shadow {
-  animation: none;
-  opacity: 0.55;
+  animation: shell-fade 0.65s ease 2.25s forwards;
 }
 
 .envelope-body {
@@ -298,7 +297,7 @@ onUnmounted(() => {
 }
 
 .envelope.open .envelope-body {
-  animation: none;
+  animation: shell-fade 0.65s ease 2.25s forwards;
 }
 
 .front {
@@ -310,7 +309,7 @@ onUnmounted(() => {
 }
 
 .envelope.open .front {
-  animation: none;
+  animation: shell-fade 0.65s ease 2.25s forwards;
 }
 
 .pocket {
@@ -335,7 +334,9 @@ onUnmounted(() => {
 
 .envelope.open .flap {
   z-index: 1;
-  animation: flap-open 0.55s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  animation:
+    flap-open 0.55s cubic-bezier(0.4, 0, 0.2, 1) forwards,
+    shell-fade 0.65s ease 2.25s forwards;
 }
 
 .flap::after {
@@ -373,7 +374,7 @@ onUnmounted(() => {
 .letter-mouth.open {
   visibility: visible;
   pointer-events: auto;
-  animation: mouth-cover 0.55s cubic-bezier(0.22, 1, 0.36, 1) 2.2s forwards;
+  animation: mouth-center 0.85s cubic-bezier(0.22, 1, 0.36, 1) 2.2s forwards;
 }
 
 .letter {
@@ -391,7 +392,9 @@ onUnmounted(() => {
 
 .letter.open {
   pointer-events: auto;
-  animation: letter-exit 1.6s cubic-bezier(0.22, 1, 0.36, 1) 0.55s both;
+  animation:
+    letter-exit 1.6s cubic-bezier(0.22, 1, 0.36, 1) 0.55s both,
+    letter-center 0.85s cubic-bezier(0.22, 1, 0.36, 1) 2.2s forwards;
 }
 
 .letter-sheet {
@@ -481,7 +484,7 @@ onUnmounted(() => {
 }
 
 .envelope.open .hearts {
-  animation: shell-fade 0.4s ease 0.9s forwards;
+  animation: shell-fade 0.4s ease 2.2s forwards;
 }
 
 .heart {
@@ -732,14 +735,33 @@ onUnmounted(() => {
   }
 }
 
-@keyframes mouth-cover {
+@keyframes letter-center {
   0% {
-    bottom: 0;
-    z-index: 2;
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0) scale(1);
   }
   100% {
-    bottom: -48%;
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(40%) scale(1.03);
+  }
+}
+
+@keyframes mouth-center {
+  0% {
+    bottom: 0;
+    z-index: 6;
+    overflow: hidden;
+  }
+  20% {
+    overflow: visible;
     z-index: 10;
+  }
+  100% {
+    bottom: -58%;
+    z-index: 10;
+    overflow: visible;
   }
 }
 
@@ -824,6 +846,9 @@ onUnmounted(() => {
   .letter.open,
   .letter-mouth.open,
   .envelope.open .flap,
+  .envelope.open .envelope-body,
+  .envelope.open .front,
+  .envelope.open .envelope-shadow,
   .envelope.open .seal,
   .envelope.open .hearts {
     animation-duration: 0.01ms !important;
