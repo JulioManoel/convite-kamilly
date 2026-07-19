@@ -1,35 +1,38 @@
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 
+const LETTER_EXIT_END_MS = 2200
 const OPEN_SEQUENCE_MS = 3200
 const MOBILE_QUERY = '(max-width: 768px)'
 
 const phase = ref('idle') // idle | open
+const isCentered = ref(false)
 const isExpanded = ref(false)
 const letterSheetRef = ref(null)
 
 const isOpen = computed(() => phase.value === 'open')
 
+let centerTimer = 0
 let expandTimer = 0
 
-function clearExpandTimer() {
+function clearTimers() {
+  if (centerTimer) {
+    window.clearTimeout(centerTimer)
+    centerTimer = 0
+  }
   if (expandTimer) {
     window.clearTimeout(expandTimer)
     expandTimer = 0
   }
 }
 
-async function expandInviteFullscreen() {
+async function animateSheetFromRect(first) {
   const sheet = letterSheetRef.value
+  if (!sheet) return
+
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  if (reduceMotion) return
 
-  if (!sheet || reduceMotion) {
-    isExpanded.value = true
-    return
-  }
-
-  const first = sheet.getBoundingClientRect()
-  isExpanded.value = true
   await nextTick()
   await new Promise((resolve) => {
     requestAnimationFrame(() => requestAnimationFrame(resolve))
@@ -46,11 +49,9 @@ async function expandInviteFullscreen() {
   sheet.style.transformOrigin = 'top left'
   sheet.style.transition = 'none'
   sheet.style.transform = `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`
-
-  // Force reflow so the browser registers the starting transform
   void sheet.offsetWidth
 
-  sheet.style.transition = 'transform 0.95s cubic-bezier(0.22, 1, 0.36, 1)'
+  sheet.style.transition = 'transform 0.85s cubic-bezier(0.22, 1, 0.36, 1)'
   sheet.style.transform = 'translate(0px, 0px) scale(1, 1)'
 
   const clearInline = () => {
@@ -68,8 +69,27 @@ async function expandInviteFullscreen() {
   sheet.addEventListener('transitionend', onEnd)
 }
 
-function scheduleMobileExpand() {
-  clearExpandTimer()
+async function centerInvite() {
+  const sheet = letterSheetRef.value
+  const first = sheet?.getBoundingClientRect()
+  isCentered.value = true
+  if (first) await animateSheetFromRect(first)
+}
+
+async function expandInviteFullscreen() {
+  const sheet = letterSheetRef.value
+  const first = sheet?.getBoundingClientRect()
+  isExpanded.value = true
+  if (first) await animateSheetFromRect(first)
+}
+
+function schedulePostOpenMotion() {
+  clearTimers()
+
+  centerTimer = window.setTimeout(() => {
+    centerInvite()
+  }, LETTER_EXIT_END_MS)
+
   if (!window.matchMedia(MOBILE_QUERY).matches) return
 
   expandTimer = window.setTimeout(() => {
@@ -80,7 +100,7 @@ function scheduleMobileExpand() {
 function openEnvelope() {
   if (phase.value !== 'idle') return
   phase.value = 'open'
-  scheduleMobileExpand()
+  schedulePostOpenMotion()
 }
 
 function onKeydown(event) {
@@ -96,12 +116,12 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('keydown', onKeydown)
-  clearExpandTimer()
+  clearTimers()
 })
 </script>
 
 <template>
-  <main class="scene" :class="{ 'is-open': isOpen, 'is-expanded': isExpanded }">
+  <main class="scene" :class="{ 'is-open': isOpen, 'is-centered': isCentered, 'is-expanded': isExpanded }">
     <header class="intro" :class="{ 'is-hidden': isOpen }">
       <p class="intro-label">Para você</p>
       <h1 class="brand">Kamilly</h1>
@@ -130,11 +150,14 @@ onUnmounted(() => {
             <span class="seal-core">K</span>
           </div>
 
-          <Teleport to="body" :disabled="!isExpanded">
-            <div class="letter-mouth" :class="{ open: isOpen, expanded: isExpanded }">
+          <Teleport to="body" :disabled="!isCentered">
+            <div
+              class="letter-mouth"
+              :class="{ open: isOpen, centered: isCentered, expanded: isExpanded }"
+            >
               <article
                 class="letter"
-                :class="{ open: isOpen, expanded: isExpanded }"
+                :class="{ open: isOpen, centered: isCentered, expanded: isExpanded }"
                 aria-live="polite"
               >
                 <div ref="letterSheetRef" class="letter-sheet">
@@ -377,7 +400,6 @@ onUnmounted(() => {
 .letter-mouth.open {
   visibility: visible;
   pointer-events: auto;
-  animation: mouth-center 0.85s cubic-bezier(0.22, 1, 0.36, 1) 2.2s forwards;
 }
 
 .letter {
@@ -395,9 +417,60 @@ onUnmounted(() => {
 
 .letter.open {
   pointer-events: auto;
-  animation:
-    letter-exit 1.6s cubic-bezier(0.22, 1, 0.36, 1) 0.55s both,
-    letter-center 0.85s cubic-bezier(0.22, 1, 0.36, 1) 2.2s forwards;
+  animation: letter-exit 1.6s cubic-bezier(0.22, 1, 0.36, 1) 0.55s both;
+}
+
+/* After exit: invite card locked to the viewport center */
+.letter-mouth.open.centered {
+  position: fixed;
+  inset: 0;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 1000;
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  height: 100dvh;
+  transform: none;
+  overflow: auto;
+  visibility: visible;
+  pointer-events: auto;
+  animation: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+.letter.open.centered {
+  position: relative;
+  left: auto;
+  right: auto;
+  bottom: auto;
+  width: min(90vw, 300px);
+  min-height: auto;
+  transform: none;
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  animation: none;
+}
+
+.letter.open.centered .letter-sheet {
+  width: 100%;
+  will-change: transform;
+}
+
+.scene.is-centered .stage {
+  perspective: none;
+}
+
+.scene.is-centered .envelope {
+  transform: none;
+  transform-style: flat;
 }
 
 .letter-sheet {
@@ -636,36 +709,6 @@ onUnmounted(() => {
   }
 }
 
-@keyframes letter-center {
-  0% {
-    opacity: 1;
-    visibility: visible;
-    transform: translateY(0) scale(1);
-  }
-  100% {
-    opacity: 1;
-    visibility: visible;
-    transform: translateY(40%) scale(1.03);
-  }
-}
-
-@keyframes mouth-center {
-  0% {
-    bottom: 0;
-    z-index: 6;
-    overflow: hidden;
-  }
-  20% {
-    overflow: visible;
-    z-index: 10;
-  }
-  100% {
-    bottom: -58%;
-    z-index: 10;
-    overflow: visible;
-  }
-}
-
 @keyframes shell-fade {
   from {
     opacity: 1;
@@ -722,7 +765,7 @@ onUnmounted(() => {
     height: 186px;
   }
 
-  .letter-mouth:not(.expanded) {
+  .letter-mouth:not(.centered) {
     width: 97%;
     max-width: 280px;
   }
@@ -731,44 +774,19 @@ onUnmounted(() => {
     padding: 1.7rem 1.2rem 1.5rem;
   }
 
-  /* Fullscreen invite — teleported to body so it escapes stage perspective */
-  .letter-mouth.open.expanded {
-    position: fixed;
-    inset: 0;
-    left: 0;
-    right: 0;
-    top: 0;
-    bottom: 0;
-    z-index: 1000;
-    width: 100vw;
-    max-width: none;
-    height: 100%;
-    height: 100dvh;
-    transform: none;
-    overflow: auto;
-    visibility: visible;
-    pointer-events: auto;
-    animation: none;
+  /* Fullscreen invite after centered settle */
+  .letter-mouth.open.centered.expanded {
+    padding: 0;
     display: block;
-    -webkit-overflow-scrolling: touch;
   }
 
-  .letter.open.expanded {
-    position: relative;
-    left: auto;
-    right: auto;
-    bottom: auto;
+  .letter.open.centered.expanded {
     width: 100%;
     min-height: 100%;
     min-height: 100dvh;
-    transform: none;
-    opacity: 1;
-    visibility: visible;
-    pointer-events: auto;
-    animation: none;
   }
 
-  .letter.open.expanded .letter-sheet {
+  .letter.open.centered.expanded .letter-sheet {
     width: 100%;
     min-height: 100%;
     min-height: 100dvh;
@@ -783,21 +801,11 @@ onUnmounted(() => {
       max(2.2rem, env(safe-area-inset-bottom, 0px))
       max(1.35rem, env(safe-area-inset-left, 0px));
     box-shadow: none;
-    will-change: transform;
   }
 
   .scene.is-expanded {
     overflow: hidden;
     padding: 0;
-  }
-
-  .scene.is-expanded .stage {
-    perspective: none;
-  }
-
-  .scene.is-expanded .envelope {
-    transform: none;
-    transform-style: flat;
   }
 }
 
