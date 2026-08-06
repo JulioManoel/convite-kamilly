@@ -1,37 +1,91 @@
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
+import gsap from 'gsap'
 
-const LETTER_EXIT_END_MS = 2200
-const OPEN_SEQUENCE_MS = 3200
+const LETTER_EXIT_END = 2.2
+const OPEN_SEQUENCE_END = 3.2
+const LETTER_TUCK = 220
 const MOBILE_QUERY = '(max-width: 768px)'
 
 const phase = ref('idle') // idle | open
 const isCentered = ref(false)
 const isExpanded = ref(false)
+
+const sceneRef = ref(null)
+const introRef = ref(null)
+const introHintRef = ref(null)
+const envelopeStageRef = ref(null)
+const envelopeRef = ref(null)
+const envelopeShadowRef = ref(null)
+const envelopeBodyRef = ref(null)
+const pocketRef = ref(null)
+const flapRef = ref(null)
+const flapLiningRef = ref(null)
+const sealRef = ref(null)
+const sealRingRef = ref(null)
+const letterMouthRef = ref(null)
+const letterRef = ref(null)
 const letterSheetRef = ref(null)
 
 const isOpen = computed(() => phase.value === 'open')
 
-let centerTimer = 0
-let expandTimer = 0
+let ctx
+let idleTl
+let openTl
 
-function clearTimers() {
-  if (centerTimer) {
-    window.clearTimeout(centerTimer)
-    centerTimer = 0
-  }
-  if (expandTimer) {
-    window.clearTimeout(expandTimer)
-    expandTimer = 0
-  }
+function prefersReducedMotion() {
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+}
+
+function getShellParts() {
+  return [
+    envelopeShadowRef.value,
+    envelopeBodyRef.value,
+    pocketRef.value,
+    flapRef.value,
+  ].filter(Boolean)
+}
+
+function killIdleMotion() {
+  idleTl?.kill()
+  idleTl = null
+  if (envelopeStageRef.value) gsap.set(envelopeStageRef.value, { y: 0 })
+  if (envelopeShadowRef.value) gsap.set(envelopeShadowRef.value, { clearProps: 'scaleX,opacity' })
+}
+
+function startIdleMotion() {
+  if (prefersReducedMotion()) return
+
+  killIdleMotion()
+
+  idleTl = gsap.timeline({ defaults: { ease: 'power1.inOut' } })
+
+  idleTl
+    .to(
+      envelopeStageRef.value,
+      { y: -10, duration: 2.25, repeat: -1, yoyo: true },
+      0,
+    )
+    .to(
+      envelopeShadowRef.value,
+      { scaleX: 0.92, opacity: 0.55, duration: 2.25, repeat: -1, yoyo: true },
+      0,
+    )
+    .to(
+      introHintRef.value,
+      { opacity: 1, duration: 1.2, repeat: -1, yoyo: true },
+      0,
+    )
+    .to(
+      sealRingRef.value,
+      { rotation: 360, duration: 18, ease: 'none', repeat: -1 },
+      0,
+    )
 }
 
 async function animateSheetFromRect(first) {
   const sheet = letterSheetRef.value
-  if (!sheet) return
-
-  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  if (reduceMotion) return
+  if (!sheet || prefersReducedMotion()) return
 
   await nextTick()
   await new Promise((resolve) => {
@@ -46,32 +100,35 @@ async function animateSheetFromRect(first) {
   const sx = first.width / last.width
   const sy = first.height / last.height
 
-  sheet.style.transformOrigin = 'top left'
-  sheet.style.transition = 'none'
-  sheet.style.transform = `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`
-  void sheet.offsetWidth
-
-  sheet.style.transition = 'transform 0.85s cubic-bezier(0.22, 1, 0.36, 1)'
-  sheet.style.transform = 'translate(0px, 0px) scale(1, 1)'
-
-  const clearInline = () => {
-    sheet.style.transition = ''
-    sheet.style.transform = ''
-    sheet.style.transformOrigin = ''
-    sheet.removeEventListener('transitionend', onEnd)
-  }
-
-  const onEnd = (event) => {
-    if (event.propertyName !== 'transform') return
-    clearInline()
-  }
-
-  sheet.addEventListener('transitionend', onEnd)
+  gsap.fromTo(
+    sheet,
+    {
+      x: dx,
+      y: dy,
+      scaleX: sx,
+      scaleY: sy,
+      transformOrigin: '0% 0%',
+    },
+    {
+      x: 0,
+      y: 0,
+      scaleX: 1,
+      scaleY: 1,
+      duration: 0.85,
+      ease: 'power3.out',
+      clearProps: 'transform',
+    },
+  )
 }
 
 async function centerInvite() {
   const sheet = letterSheetRef.value
   const first = sheet?.getBoundingClientRect()
+
+  if (letterRef.value) {
+    gsap.set(letterRef.value, { clearProps: 'transform,opacity,visibility' })
+  }
+
   isCentered.value = true
   if (first) await animateSheetFromRect(first)
 }
@@ -83,24 +140,121 @@ async function expandInviteFullscreen() {
   if (first) await animateSheetFromRect(first)
 }
 
-function schedulePostOpenMotion() {
-  clearTimers()
+function snapOpenInstant() {
+  killIdleMotion()
 
-  centerTimer = window.setTimeout(() => {
-    centerInvite()
-  }, LETTER_EXIT_END_MS)
+  gsap.set(introRef.value, { autoAlpha: 0, y: -12 })
+  gsap.set(flapRef.value, { rotationX: 180, transformOrigin: '50% 0%' })
+  gsap.set(flapLiningRef.value, { autoAlpha: 1 })
+  gsap.set(sealRef.value, { autoAlpha: 0 })
+  gsap.set(letterMouthRef.value, { autoAlpha: 1 })
+  gsap.set(letterRef.value, { autoAlpha: 1, clearProps: 'transform' })
+  gsap.set(getShellParts(), { autoAlpha: 0 })
 
-  if (!window.matchMedia(MOBILE_QUERY).matches) return
+  centerInvite().then(() => {
+    if (window.matchMedia(MOBILE_QUERY).matches) expandInviteFullscreen()
+  })
+}
 
-  expandTimer = window.setTimeout(() => {
-    expandInviteFullscreen()
-  }, OPEN_SEQUENCE_MS)
+function playOpenSequence() {
+  killIdleMotion()
+  openTl?.kill()
+
+  const run = () => {
+    gsap.set(sealRef.value, {
+      xPercent: -50,
+      yPercent: -50,
+      x: 0,
+      y: 0,
+      scale: 1,
+      rotation: 0,
+      autoAlpha: 1,
+    })
+    gsap.set(flapRef.value, {
+      rotationX: 0,
+      transformOrigin: '50% 0%',
+      transformPerspective: 1200,
+    })
+    gsap.set(flapLiningRef.value, { autoAlpha: 0 })
+    gsap.set(letterRef.value, { autoAlpha: 0, yPercent: 100, y: LETTER_TUCK })
+    gsap.set(letterMouthRef.value, { autoAlpha: 1 })
+
+    openTl = gsap.timeline({ defaults: { ease: 'power2.out' } })
+
+    openTl
+      .addLabel('open', 0)
+      .to(introRef.value, { autoAlpha: 0, y: -12, duration: 0.45, ease: 'power1.out' }, 'open')
+      .to(
+        flapRef.value,
+        { rotationX: 180, duration: 0.55, ease: 'power2.inOut' },
+        'open',
+      )
+      .to(flapLiningRef.value, { autoAlpha: 1, duration: 0.2, ease: 'power1.out' }, 'open+=0.2')
+      .to(
+        sealRef.value,
+        {
+          keyframes: [
+            {
+              yPercent: -58,
+              scale: 1.14,
+              rotation: -8,
+              duration: 0.1925,
+              ease: 'power2.out',
+            },
+            {
+              xPercent: -8,
+              yPercent: 0,
+              y: 78,
+              scale: 0.68,
+              rotation: 28,
+              autoAlpha: 0,
+              duration: 0.3575,
+              ease: 'power3.out',
+            },
+          ],
+        },
+        'open',
+      )
+      .to(
+        letterRef.value,
+        {
+          autoAlpha: 1,
+          yPercent: 0,
+          y: 0,
+          duration: 1.6,
+          ease: 'power3.out',
+        },
+        'open+=0.55',
+      )
+      .to(
+        getShellParts(),
+        { autoAlpha: 0, duration: 0.65, ease: 'power1.inOut' },
+        'open+=2.25',
+      )
+      .add(() => {
+        centerInvite()
+      }, `open+=${LETTER_EXIT_END}`)
+      .add(() => {
+        if (window.matchMedia(MOBILE_QUERY).matches) {
+          expandInviteFullscreen()
+        }
+      }, `open+=${OPEN_SEQUENCE_END}`)
+  }
+
+  if (ctx) ctx.add(run)
+  else run()
 }
 
 function openEnvelope() {
   if (phase.value !== 'idle') return
   phase.value = 'open'
-  schedulePostOpenMotion()
+
+  if (prefersReducedMotion()) {
+    snapOpenInstant()
+    return
+  }
+
+  playOpenSequence()
 }
 
 function onKeydown(event) {
@@ -111,26 +265,41 @@ function onKeydown(event) {
 }
 
 onMounted(() => {
+  ctx = gsap.context(() => {
+    gsap.set(introRef.value, { xPercent: -50 })
+    gsap.set(sealRef.value, { xPercent: -50, yPercent: -50 })
+    gsap.set(flapLiningRef.value, { autoAlpha: 0 })
+    gsap.set(introHintRef.value, { opacity: 0.55 })
+    startIdleMotion()
+  }, sceneRef)
+
   window.addEventListener('keydown', onKeydown)
 })
 
 onUnmounted(() => {
   window.removeEventListener('keydown', onKeydown)
-  clearTimers()
+  openTl?.kill()
+  idleTl?.kill()
+  ctx?.revert()
 })
 </script>
 
 <template>
-  <main class="scene" :class="{ 'is-open': isOpen, 'is-centered': isCentered, 'is-expanded': isExpanded }">
-    <header class="intro" :class="{ 'is-hidden': isOpen }">
+  <main
+    ref="sceneRef"
+    class="scene"
+    :class="{ 'is-open': isOpen, 'is-centered': isCentered, 'is-expanded': isExpanded }"
+  >
+    <header ref="introRef" class="intro" :class="{ 'is-hidden': isOpen }">
       <p class="intro-label">Para você</p>
       <h1 class="brand">Kamilly</h1>
-      <p class="intro-hint">Toque na carta para abrir</p>
+      <p ref="introHintRef" class="intro-hint">Toque na carta para abrir</p>
     </header>
 
     <div class="stage">
-      <div class="envelope-stage" :class="{ opened: isOpen }">
+      <div ref="envelopeStageRef" class="envelope-stage" :class="{ opened: isOpen }">
         <div
+          ref="envelopeRef"
           class="envelope"
           role="button"
           tabindex="0"
@@ -139,23 +308,27 @@ onUnmounted(() => {
           :aria-disabled="isOpen ? 'true' : undefined"
           @click="openEnvelope"
         >
-          <div class="envelope-shadow" />
-          <div class="envelope-body" />
+          <div ref="envelopeShadowRef" class="envelope-shadow" />
+          <div ref="envelopeBodyRef" class="envelope-body" />
 
-          <div class="front pocket" aria-hidden="true" />
-          <div class="front flap" aria-hidden="true" />
+          <div ref="pocketRef" class="front pocket" aria-hidden="true" />
+          <div ref="flapRef" class="front flap" aria-hidden="true">
+            <div ref="flapLiningRef" class="flap-lining" />
+          </div>
 
-          <div class="seal" aria-hidden="true">
-            <span class="seal-ring" />
+          <div ref="sealRef" class="seal" aria-hidden="true">
+            <span ref="sealRingRef" class="seal-ring" />
             <span class="seal-core">K</span>
           </div>
 
           <Teleport to="body" :disabled="!isCentered">
             <div
+              ref="letterMouthRef"
               class="letter-mouth"
               :class="{ open: isOpen, centered: isCentered, expanded: isExpanded }"
             >
               <article
+                ref="letterRef"
                 class="letter"
                 :class="{ open: isOpen, centered: isCentered, expanded: isExpanded }"
                 aria-live="polite"
@@ -202,17 +375,11 @@ onUnmounted(() => {
   position: absolute;
   top: clamp(1.5rem, 5vh, 3rem);
   left: 50%;
-  transform: translateX(-50%);
   text-align: center;
   z-index: 2;
-  transition:
-    opacity 0.45s ease,
-    transform 0.45s ease;
 }
 
 .intro.is-hidden {
-  opacity: 0;
-  transform: translateX(-50%) translateY(-12px);
   pointer-events: none;
 }
 
@@ -240,7 +407,6 @@ onUnmounted(() => {
   font-weight: 300;
   letter-spacing: 0.08em;
   color: var(--ink-soft);
-  animation: pulse-hint 2.4s ease-in-out infinite;
 }
 
 .stage {
@@ -274,13 +440,11 @@ onUnmounted(() => {
   background: linear-gradient(160deg, #758588 0%, var(--envelope-dark) 100%);
   box-shadow: 0 14px 36px rgba(42, 36, 48, 0.22);
   transform-style: preserve-3d;
-  animation: float 4.5s ease-in-out infinite;
   cursor: pointer;
   overflow: visible;
 }
 
 .envelope.open {
-  animation: none;
   cursor: default;
   background: transparent;
   box-shadow: none;
@@ -304,12 +468,8 @@ onUnmounted(() => {
   border-radius: 50%;
   background: radial-gradient(ellipse, var(--shadow), transparent 70%);
   filter: blur(2px);
-  animation: shadow-breathe 4.5s ease-in-out infinite;
+  opacity: 0.85;
   pointer-events: none;
-}
-
-.envelope.open .envelope-shadow {
-  animation: shell-fade 0.65s ease 2.25s forwards;
 }
 
 .envelope-body {
@@ -322,20 +482,12 @@ onUnmounted(() => {
   pointer-events: none;
 }
 
-.envelope.open .envelope-body {
-  animation: shell-fade 0.65s ease 2.25s forwards;
-}
-
 .front {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   pointer-events: none;
-}
-
-.envelope.open .front {
-  animation: shell-fade 0.65s ease 2.25s forwards;
 }
 
 .pocket {
@@ -360,24 +512,16 @@ onUnmounted(() => {
 
 .envelope.open .flap {
   z-index: 1;
-  animation:
-    flap-open 0.55s cubic-bezier(0.4, 0, 0.2, 1) forwards,
-    shell-fade 0.65s ease 2.25s forwards;
 }
 
-.flap::after {
-  content: '';
+.flap-lining {
   position: absolute;
   inset: 0;
-  clip-path: inherit;
+  clip-path: polygon(0 0, 100% 0, 50% 58%);
   background: linear-gradient(180deg, var(--envelope-lining) 0%, #c48e97 100%);
   opacity: 0;
   backface-visibility: hidden;
   transform: rotateX(180deg);
-}
-
-.envelope.open .flap::after {
-  animation: lining-show 0.2s ease 0.2s forwards;
 }
 
 /* Letter rises behind the pocket, filling the full V opening */
@@ -417,7 +561,6 @@ onUnmounted(() => {
 
 .letter.open {
   pointer-events: auto;
-  animation: letter-exit 1.6s cubic-bezier(0.22, 1, 0.36, 1) 0.55s both;
 }
 
 /* After exit: invite card locked to the viewport center */
@@ -437,7 +580,6 @@ onUnmounted(() => {
   overflow: auto;
   visibility: visible;
   pointer-events: auto;
-  animation: none;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -456,7 +598,6 @@ onUnmounted(() => {
   opacity: 1;
   visibility: visible;
   pointer-events: auto;
-  animation: none;
 }
 
 .letter.open.centered .letter-sheet {
@@ -507,7 +648,6 @@ onUnmounted(() => {
   z-index: 8;
   width: 54px;
   height: 54px;
-  transform: translate(-50%, -50%);
   border-radius: 50%;
   display: grid;
   place-items: center;
@@ -533,7 +673,6 @@ onUnmounted(() => {
   inset: -4px;
   border-radius: 50%;
   border: 1px dashed rgba(201, 164, 108, 0.45);
-  animation: spin-slow 18s linear infinite;
 }
 
 .seal-core {
@@ -546,7 +685,6 @@ onUnmounted(() => {
 
 .envelope.open .seal {
   z-index: 4;
-  animation: seal-break 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 .invite-eyebrow {
@@ -638,101 +776,6 @@ onUnmounted(() => {
   color: var(--rose-seal);
 }
 
-@keyframes float {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-10px);
-  }
-}
-
-@keyframes shadow-breathe {
-  0%,
-  100% {
-    transform: scaleX(1);
-    opacity: 0.85;
-  }
-  50% {
-    transform: scaleX(0.92);
-    opacity: 0.55;
-  }
-}
-
-@keyframes pulse-hint {
-  0%,
-  100% {
-    opacity: 0.55;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-
-@keyframes spin-slow {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@keyframes flap-open {
-  from {
-    transform: rotateX(0deg);
-  }
-  to {
-    transform: rotateX(180deg);
-  }
-}
-
-@keyframes lining-show {
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes letter-exit {
-  0% {
-    opacity: 0;
-    visibility: hidden;
-    transform: translateY(calc(100% + var(--tuck)));
-  }
-  4% {
-    opacity: 1;
-    visibility: visible;
-    transform: translateY(calc(100% + var(--tuck)));
-  }
-  100% {
-    opacity: 1;
-    visibility: visible;
-    transform: translateY(0);
-  }
-}
-
-@keyframes shell-fade {
-  from {
-    opacity: 1;
-  }
-  to {
-    opacity: 0;
-  }
-}
-
-@keyframes seal-break {
-  0% {
-    transform: translate(-50%, -50%) scale(1) rotate(0deg);
-    opacity: 1;
-  }
-  35% {
-    transform: translate(-50%, -58%) scale(1.14) rotate(-8deg);
-    opacity: 1;
-  }
-  100% {
-    transform: translate(-8%, 78px) scale(0.68) rotate(28deg);
-    opacity: 0;
-  }
-}
-
 @media (max-width: 768px) {
   .scene {
     min-height: 100%;
@@ -806,26 +849,6 @@ onUnmounted(() => {
   .scene.is-expanded {
     overflow: hidden;
     padding: 0;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .envelope,
-  .envelope-shadow,
-  .intro-hint,
-  .seal-ring {
-    animation: none !important;
-  }
-
-  .letter.open,
-  .letter-mouth.open,
-  .envelope.open .flap,
-  .envelope.open .envelope-body,
-  .envelope.open .front,
-  .envelope.open .envelope-shadow,
-  .envelope.open .seal {
-    animation-duration: 0.01ms !important;
-    animation-delay: 0s !important;
   }
 }
 </style>
