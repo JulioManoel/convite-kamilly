@@ -8,7 +8,7 @@ defineProps({
   isExpanded: { type: Boolean, default: false },
 })
 
-const SPARKLE_COUNT = 22
+const SPARKLE_COUNT = 12
 
 const letterMouthRef = ref(null)
 const letterRef = ref(null)
@@ -74,36 +74,35 @@ function playSparkles() {
   const nodes = sparklesRef.value?.querySelectorAll('.invite-sparkle')
   if (!nodes?.length || prefersReducedMotion()) return
 
-  gsap.set(nodes, { autoAlpha: 0, scale: 0.35 })
+  const mobile = window.matchMedia('(max-width: 768px)').matches
+  gsap.set(nodes, { autoAlpha: 0, scale: 0.35, force3D: true })
   sparkleTl = gsap.timeline()
-  nodes.forEach((node, index) => {
-    const meta = sparkles.value[index]
-    sparkleTl.fromTo(
-      node,
-      { autoAlpha: 0, scale: 0.2, rotation: -20 },
-      {
-        autoAlpha: 0.95,
-        scale: 1,
-        rotation: 0,
-        duration: 0.55,
-        ease: 'back.out(2)',
-        delay: meta?.delay ?? 0,
-      },
-      0,
-    )
+  sparkleTl.to(nodes, {
+    autoAlpha: 0.9,
+    scale: 1,
+    duration: 0.45,
+    stagger: 0.03,
+    ease: 'power2.out',
+    force3D: true,
+  })
+  if (!mobile) {
     sparkleTl.to(
-      node,
+      nodes,
       {
-        autoAlpha: 0.25,
-        y: '-=6',
-        duration: 1.4 + (index % 4) * 0.2,
+        autoAlpha: 0.28,
+        y: '-=5',
+        duration: 1.5,
         repeat: -1,
         yoyo: true,
         ease: 'sine.inOut',
+        stagger: {
+          each: 0.08,
+          from: 'random',
+        },
       },
-      0.4,
+      0.35,
     )
-  })
+  }
 }
 
 async function fadeBackdrop(show) {
@@ -204,8 +203,8 @@ defineExpose({
 <style scoped>
 /* Letter rises behind the pocket, filling the full V opening */
 .letter-mouth {
-  --exit-room: min(72vh, 540px);
-  --tuck: 220px;
+  --exit-room: min(68vh, 480px);
+  --tuck: 160px;
   position: absolute;
   left: 50%;
   bottom: 0;
@@ -217,6 +216,7 @@ defineExpose({
   overflow: hidden;
   pointer-events: none;
   visibility: hidden;
+  contain: layout paint;
 }
 
 .letter-mouth.open {
@@ -232,14 +232,27 @@ defineExpose({
   bottom: calc(100% - var(--exit-room));
   width: 100%;
   max-width: 100%;
-  transform: translateY(calc(100% + var(--tuck)));
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
+  backface-visibility: hidden;
 }
 
 .letter.open {
   pointer-events: auto;
+}
+
+.letter.is-exiting {
+  will-change: transform;
+}
+
+.letter.is-exiting .letter-sheet {
+  box-shadow: 0 10px 22px rgba(42, 36, 48, 0.14);
+}
+
+.letter.is-exiting .invitation-glow,
+.letter:not(.centered) .invite-sparkles {
+  display: none;
 }
 
 /* After exit: invite card locked to the viewport center */
@@ -262,6 +275,7 @@ defineExpose({
   padding: 1.25rem;
   box-sizing: border-box;
   -webkit-overflow-scrolling: touch;
+  contain: none;
 }
 
 .invite-backdrop {
@@ -275,7 +289,6 @@ defineExpose({
     radial-gradient(ellipse 70% 55% at 50% 42%, rgba(255, 246, 236, 0.16), transparent 68%),
     radial-gradient(ellipse 100% 80% at 50% 100%, rgba(6, 18, 41, 0.55), transparent 60%),
     linear-gradient(180deg, rgba(6, 18, 41, 0.35) 0%, rgba(8, 20, 40, 0.72) 100%);
-  backdrop-filter: blur(2px);
 }
 
 .letter.open.centered {
@@ -292,6 +305,7 @@ defineExpose({
   visibility: visible;
   pointer-events: auto;
   flex-shrink: 0;
+  will-change: auto;
 }
 
 .letter.open.centered .letter-sheet {
@@ -314,7 +328,6 @@ defineExpose({
   background: radial-gradient(circle, #fff8e7 0%, var(--gold-soft) 55%, transparent 75%);
   box-shadow: 0 0 8px rgba(226, 201, 154, 0.75);
   opacity: 0;
-  will-change: transform, opacity;
 }
 
 .letter-sheet {
@@ -340,7 +353,6 @@ defineExpose({
   height: 55%;
   border-radius: 50%;
   background: radial-gradient(ellipse, rgba(255, 248, 242, 0.7), transparent 65%);
-  filter: blur(8px);
   pointer-events: none;
 }
 
@@ -439,12 +451,18 @@ defineExpose({
 
 @media (max-width: 768px) {
   .letter-mouth:not(.centered) {
+    --exit-room: min(72vh, 520px);
+    --tuck: 96px;
     width: 97%;
     max-width: 280px;
   }
 
   .letter-sheet {
     padding: 1.7rem 1.2rem 1.5rem;
+  }
+
+  .invitation-glow {
+    opacity: 0.55;
   }
 
   /* Fullscreen invite after centered settle */
@@ -483,13 +501,13 @@ defineExpose({
       max(2.2rem, env(safe-area-inset-bottom, 0px))
       max(1.35rem, env(safe-area-inset-left, 0px));
     box-shadow: none;
+    will-change: auto;
   }
 
   .letter.open.centered.expanded .invite-backdrop {
     background:
       radial-gradient(ellipse 90% 70% at 50% 30%, rgba(255, 244, 236, 0.22), transparent 70%),
       linear-gradient(180deg, rgba(247, 242, 238, 0.08), rgba(247, 242, 238, 0));
-    backdrop-filter: none;
   }
 }
 </style>

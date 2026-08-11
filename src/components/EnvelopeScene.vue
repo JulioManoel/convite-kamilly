@@ -5,9 +5,10 @@ import Letter from './Letter.vue'
 import sealImage from '../assets/k.webp'
 
 const MOBILE_QUERY = '(max-width: 768px)'
-const STAR_COUNT = 72
-const PETAL_COUNT = 16
-const LETTER_TUCK = 220
+const STAR_COUNT = 48
+const PETAL_COUNT = 10
+const LETTER_TUCK = 160
+const LETTER_TUCK_MOBILE = 96
 
 const phase = ref('idle') // idle | open
 const isCentered = ref(false)
@@ -72,6 +73,18 @@ function prefersReducedMotion() {
 
 function isMobile() {
   return window.matchMedia(MOBILE_QUERY).matches
+}
+
+function getLetterTuck() {
+  return isMobile() ? LETTER_TUCK_MOBILE : LETTER_TUCK
+}
+
+function getLetterExitDistance() {
+  const letter = letterRef.value
+  const tuck = getLetterTuck()
+  if (!letter) return 280 + tuck
+  const height = letter.offsetHeight || letter.getBoundingClientRect().height || 280
+  return height + tuck
 }
 
 function startStarMotion() {
@@ -211,6 +224,7 @@ function lockPageOverflow() {
 async function centerInvite({ present = false, expand = false } = {}) {
   const sheet = letterSheetRef.value
   const first = sheet?.getBoundingClientRect()
+  const mobile = isMobile()
 
   if (letterRef.value) {
     gsap.set(letterRef.value, { clearProps: 'transform,opacity,visibility' })
@@ -225,15 +239,15 @@ async function centerInvite({ present = false, expand = false } = {}) {
   lockPageOverflow()
 
   if (present) {
-    gsap.delayedCall(expand ? 0.4 : 0.32, () => {
+    gsap.delayedCall(expand ? 0.28 : 0.24, () => {
       letterComponentRef.value?.presentInvite?.()
     })
   }
 
   if (first) {
     await animateSheetFromRect(first, {
-      duration: expand ? 1.25 : 1.15,
-      ease: expand ? 'expo.inOut' : 'power4.inOut',
+      duration: mobile ? 0.95 : expand ? 1.25 : 1.15,
+      ease: mobile ? 'power3.inOut' : expand ? 'expo.inOut' : 'power4.inOut',
     })
   } else if (present) {
     letterComponentRef.value?.presentInvite?.()
@@ -251,27 +265,29 @@ function burstPetals() {
   const nodes = petalsRef.value?.querySelectorAll('.petal')
   if (!nodes?.length || prefersReducedMotion()) return
 
-  gsap.set(nodes, {
+  const count = isMobile() ? Math.min(6, nodes.length) : nodes.length
+  const active = Array.from(nodes).slice(0, count)
+
+  gsap.set(nodes, { autoAlpha: 0 })
+  gsap.set(active, {
     x: 0,
     y: 0,
-    scale: 0.2,
+    scale: 0.25,
     rotation: 0,
     autoAlpha: 1,
+    force3D: true,
   })
 
-  nodes.forEach((node, index) => {
-    const meta = petals.value[index]
-    if (!meta) return
-    gsap.to(node, {
-      x: meta.dx,
-      y: meta.dy,
-      rotation: meta.rotation,
-      scale: meta.scale,
-      autoAlpha: 0,
-      duration: 1.05 + (index % 4) * 0.08,
-      ease: 'power3.out',
-      delay: (index % 5) * 0.015,
-    })
+  gsap.to(active, {
+    x: (index) => petals.value[index]?.dx ?? 0,
+    y: (index) => petals.value[index]?.dy ?? -40,
+    rotation: (index) => petals.value[index]?.rotation ?? 0,
+    scale: (index) => petals.value[index]?.scale ?? 0.7,
+    autoAlpha: 0,
+    duration: isMobile() ? 0.75 : 0.95,
+    ease: 'power2.out',
+    stagger: 0.012,
+    force3D: true,
   })
 }
 
@@ -298,6 +314,10 @@ function playOpenSequence() {
   starsTl?.kill()
 
   const run = () => {
+    const mobile = isMobile()
+    const exitY = getLetterExitDistance()
+    const letterEl = letterRef.value
+
     gsap.set(sealRef.value, {
       xPercent: -50,
       yPercent: -50,
@@ -311,16 +331,24 @@ function playOpenSequence() {
     gsap.set(flapRef.value, {
       rotationX: 0,
       transformOrigin: '50% 0%',
-      transformPerspective: 1400,
+      transformPerspective: mobile ? 900 : 1400,
+      force3D: true,
     })
     gsap.set(flapLiningRef.value, { autoAlpha: 0 })
-    gsap.set(letterRef.value, { autoAlpha: 0, yPercent: 100, y: LETTER_TUCK })
+    letterEl?.classList.add('is-exiting')
+    gsap.set(letterEl, {
+      autoAlpha: 0,
+      y: exitY,
+      x: 0,
+      force3D: true,
+    })
     gsap.set(letterMouthRef.value, { autoAlpha: 1 })
     gsap.set(glowRef.value, {
       autoAlpha: 0,
       scale: 0.55,
       xPercent: -50,
       yPercent: -40,
+      force3D: true,
     })
     gsap.set(petalsRef.value?.querySelectorAll('.petal') ?? [], {
       autoAlpha: 0,
@@ -331,96 +359,98 @@ function playOpenSequence() {
     })
 
     openTl = gsap.timeline({
-      defaults: { ease: 'power2.out' },
+      defaults: { ease: 'power2.out', force3D: true },
       onComplete: () => {
         gsap.set(glowRef.value, { autoAlpha: 0 })
+        letterEl?.classList.remove('is-exiting')
       },
     })
 
+    const riseAt = mobile ? 0.55 : 0.68
+    const riseDuration = mobile ? 1.15 : 1.45
+    const shellAt = riseAt + riseDuration * 0.62
+    const presentAt = riseAt + riseDuration * 0.92
+
     openTl
       .addLabel('open', 0)
-      .addLabel('flap', 0.08)
-      .addLabel('rise', 0.72)
-      .addLabel('shellOut', 2.05)
-      .addLabel('present', 2.55)
+      .addLabel('flap', mobile ? 0.04 : 0.08)
+      .addLabel('rise', riseAt)
+      .addLabel('shellOut', shellAt)
+      .addLabel('present', presentAt)
 
-      .to(introRef.value, { autoAlpha: 0, y: -18, duration: 0.55, ease: 'power2.inOut' }, 'open')
-      .to(starsRef.value, { autoAlpha: 0, duration: 1.1, ease: 'power1.inOut' }, 'open')
+      .to(introRef.value, { autoAlpha: 0, y: -14, duration: 0.4, ease: 'power2.out' }, 'open')
+      .to(starsRef.value, { autoAlpha: 0, duration: mobile ? 0.45 : 0.85, ease: 'power1.out' }, 'open')
 
       .to(
         sealRef.value,
         {
           keyframes: [
             {
-              yPercent: -62,
-              scale: 1.16,
-              rotation: -10,
-              duration: 0.22,
+              yPercent: -58,
+              scale: 1.12,
+              rotation: -8,
+              duration: 0.18,
               ease: 'power2.out',
             },
             {
               xPercent: -6,
-              yPercent: 12,
-              y: 86,
-              scale: 0.62,
-              rotation: 34,
+              yPercent: 10,
+              y: 72,
+              scale: 0.64,
+              rotation: 28,
               autoAlpha: 0,
-              duration: 0.42,
+              duration: 0.34,
               ease: 'power3.in',
             },
           ],
         },
         'open',
       )
-      .add(burstPetals, 'open+=0.16')
+      .add(burstPetals, 'open+=0.12')
 
       .fromTo(
         glowRef.value,
-        { autoAlpha: 0, scale: 0.45 },
-        { autoAlpha: 1, scale: 1.15, duration: 0.7, ease: 'power2.out' },
-        'open+=0.12',
-      )
-      .to(
-        glowRef.value,
-        { autoAlpha: 0.55, scale: 1.35, duration: 1.4, ease: 'sine.inOut' },
-        'open+=0.7',
+        { autoAlpha: 0, scale: 0.5 },
+        { autoAlpha: mobile ? 0.7 : 1, scale: 1.1, duration: 0.55, ease: 'power2.out' },
+        'open+=0.1',
       )
 
       .to(
         flapRef.value,
-        { rotationX: 180, duration: 0.85, ease: 'power3.inOut' },
+        { rotationX: 180, duration: mobile ? 0.62 : 0.78, ease: 'power2.inOut' },
         'flap',
       )
       .to(
         flapLiningRef.value,
-        { autoAlpha: 1, duration: 0.28, ease: 'power1.out' },
-        'flap+=0.28',
+        { autoAlpha: 1, duration: 0.22, ease: 'none' },
+        'flap+=0.22',
       )
 
       .to(
-        letterRef.value,
+        letterEl,
         {
           autoAlpha: 1,
-          yPercent: 0,
           y: 0,
-          duration: 1.85,
-          ease: 'power4.out',
+          duration: riseDuration,
+          ease: 'power3.out',
+          force3D: true,
         },
         'rise',
       )
 
       .to(
         getShellParts(),
-        { autoAlpha: 0, duration: 0.85, ease: 'power2.inOut' },
+        { autoAlpha: 0, duration: mobile ? 0.5 : 0.7, ease: 'power2.out' },
         'shellOut',
       )
       .to(
         glowRef.value,
-        { autoAlpha: 0, scale: 1.6, duration: 0.7, ease: 'power1.inOut' },
+        { autoAlpha: 0, scale: 1.35, duration: 0.45, ease: 'power1.out' },
         'shellOut',
       )
 
       .add(() => {
+        letterEl?.classList.remove('is-exiting')
         presentAndExpand()
       }, 'present')
   }
@@ -702,14 +732,12 @@ onUnmounted(() => {
   left: 50%;
   top: 18%;
   z-index: 2;
-  width: 160%;
-  height: 130%;
+  width: 140%;
+  height: 110%;
   border-radius: 50%;
   pointer-events: none;
   background:
-    radial-gradient(circle, rgba(255, 236, 206, 0.55) 0%, rgba(201, 164, 108, 0.28) 35%, transparent 68%);
-  filter: blur(6px);
-  mix-blend-mode: screen;
+    radial-gradient(circle, rgba(255, 236, 206, 0.5) 0%, rgba(201, 164, 108, 0.22) 38%, transparent 68%);
   will-change: transform, opacity;
 }
 
@@ -739,6 +767,8 @@ onUnmounted(() => {
   transform-origin: top center;
   transform-style: preserve-3d;
   transform: rotateX(0deg);
+  backface-visibility: hidden;
+  will-change: transform;
 }
 
 .envelope.open .flap {
