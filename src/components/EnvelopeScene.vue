@@ -4,11 +4,10 @@ import gsap from 'gsap'
 import Letter from './Letter.vue'
 import sealImage from '../assets/k.webp'
 
-const LETTER_EXIT_END = 2.2
-const OPEN_SEQUENCE_END = 3.2
-const LETTER_TUCK = 220
 const MOBILE_QUERY = '(max-width: 768px)'
 const STAR_COUNT = 72
+const PETAL_COUNT = 16
+const LETTER_TUCK = 220
 
 const phase = ref('idle') // idle | open
 const isCentered = ref(false)
@@ -24,6 +23,20 @@ const stars = ref(
     opacity: 0.35 + Math.random() * 0.65,
   })),
 )
+const petals = ref(
+  Array.from({ length: PETAL_COUNT }, (_, index) => {
+    const angle = ((index / PETAL_COUNT) * 360 + (index % 3) * 12) * (Math.PI / 180)
+    const distance = 70 + (index % 5) * 28
+    return {
+      id: index,
+      dx: Math.cos(angle) * distance,
+      dy: Math.sin(angle) * distance - 40 - (index % 4) * 18,
+      rotation: -40 + index * 18,
+      scale: 0.55 + (index % 4) * 0.18,
+      tone: index % 3,
+    }
+  }),
+)
 
 const sceneRef = ref(null)
 const starsRef = ref(null)
@@ -38,6 +51,8 @@ const flapRef = ref(null)
 const flapLiningRef = ref(null)
 const sealRef = ref(null)
 const sealRingRef = ref(null)
+const glowRef = ref(null)
+const petalsRef = ref(null)
 const letterComponentRef = ref(null)
 
 const isOpen = computed(() => phase.value === 'open')
@@ -53,6 +68,10 @@ let openTl
 
 function prefersReducedMotion() {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+}
+
+function isMobile() {
+  return window.matchMedia(MOBILE_QUERY).matches
 }
 
 function startStarMotion() {
@@ -138,14 +157,22 @@ function startIdleMotion() {
     )
 }
 
-async function animateSheetFromRect(first) {
+function waitFrames(count = 2) {
+  return new Promise((resolve) => {
+    const step = (left) => {
+      if (left <= 0) resolve()
+      else requestAnimationFrame(() => step(left - 1))
+    }
+    step(count)
+  })
+}
+
+async function animateSheetFromRect(first, { duration = 1.05, ease = 'expo.inOut' } = {}) {
   const sheet = letterSheetRef.value
   if (!sheet || prefersReducedMotion()) return
 
   await nextTick()
-  await new Promise((resolve) => {
-    requestAnimationFrame(() => requestAnimationFrame(resolve))
-  })
+  await waitFrames(2)
 
   const last = sheet.getBoundingClientRect()
   if (!last.width || !last.height) return
@@ -155,7 +182,7 @@ async function animateSheetFromRect(first) {
   const sx = first.width / last.width
   const sy = first.height / last.height
 
-  gsap.fromTo(
+  await gsap.fromTo(
     sheet,
     {
       x: dx,
@@ -169,8 +196,8 @@ async function animateSheetFromRect(first) {
       y: 0,
       scaleX: 1,
       scaleY: 1,
-      duration: 0.85,
-      ease: 'power3.out',
+      duration,
+      ease,
       clearProps: 'transform',
     },
   )
@@ -181,7 +208,7 @@ function lockPageOverflow() {
   document.body.style.overflow = 'hidden'
 }
 
-async function centerInvite() {
+async function centerInvite({ present = false, expand = false } = {}) {
   const sheet = letterSheetRef.value
   const first = sheet?.getBoundingClientRect()
 
@@ -189,17 +216,63 @@ async function centerInvite() {
     gsap.set(letterRef.value, { clearProps: 'transform,opacity,visibility' })
   }
 
+  if (present) {
+    letterComponentRef.value?.prepareContentReveal?.()
+  }
+
   isCentered.value = true
+  if (expand) isExpanded.value = true
   lockPageOverflow()
-  if (first) await animateSheetFromRect(first)
+
+  if (present) {
+    gsap.delayedCall(expand ? 0.4 : 0.32, () => {
+      letterComponentRef.value?.presentInvite?.()
+    })
+  }
+
+  if (first) {
+    await animateSheetFromRect(first, {
+      duration: expand ? 1.25 : 1.15,
+      ease: expand ? 'expo.inOut' : 'power4.inOut',
+    })
+  } else if (present) {
+    letterComponentRef.value?.presentInvite?.()
+  }
 }
 
-async function expandInviteFullscreen() {
-  const sheet = letterSheetRef.value
-  const first = sheet?.getBoundingClientRect()
-  isExpanded.value = true
-  lockPageOverflow()
-  if (first) await animateSheetFromRect(first)
+async function presentAndExpand() {
+  await centerInvite({
+    present: true,
+    expand: isMobile(),
+  })
+}
+
+function burstPetals() {
+  const nodes = petalsRef.value?.querySelectorAll('.petal')
+  if (!nodes?.length || prefersReducedMotion()) return
+
+  gsap.set(nodes, {
+    x: 0,
+    y: 0,
+    scale: 0.2,
+    rotation: 0,
+    autoAlpha: 1,
+  })
+
+  nodes.forEach((node, index) => {
+    const meta = petals.value[index]
+    if (!meta) return
+    gsap.to(node, {
+      x: meta.dx,
+      y: meta.dy,
+      rotation: meta.rotation,
+      scale: meta.scale,
+      autoAlpha: 0,
+      duration: 1.05 + (index % 4) * 0.08,
+      ease: 'power3.out',
+      delay: (index % 5) * 0.015,
+    })
+  })
 }
 
 function snapOpenInstant() {
@@ -208,6 +281,7 @@ function snapOpenInstant() {
 
   gsap.set(introRef.value, { autoAlpha: 0, y: -12 })
   gsap.set(starsRef.value, { autoAlpha: 0 })
+  gsap.set(glowRef.value, { autoAlpha: 0 })
   gsap.set(flapRef.value, { rotationX: 180, transformOrigin: '50% 0%' })
   gsap.set(flapLiningRef.value, { autoAlpha: 1 })
   gsap.set(sealRef.value, { autoAlpha: 0 })
@@ -215,9 +289,7 @@ function snapOpenInstant() {
   gsap.set(letterRef.value, { autoAlpha: 1, clearProps: 'transform' })
   gsap.set(getShellParts(), { autoAlpha: 0 })
 
-  centerInvite().then(() => {
-    if (window.matchMedia(MOBILE_QUERY).matches) expandInviteFullscreen()
-  })
+  presentAndExpand()
 }
 
 function playOpenSequence() {
@@ -239,73 +311,118 @@ function playOpenSequence() {
     gsap.set(flapRef.value, {
       rotationX: 0,
       transformOrigin: '50% 0%',
-      transformPerspective: 1200,
+      transformPerspective: 1400,
     })
     gsap.set(flapLiningRef.value, { autoAlpha: 0 })
     gsap.set(letterRef.value, { autoAlpha: 0, yPercent: 100, y: LETTER_TUCK })
     gsap.set(letterMouthRef.value, { autoAlpha: 1 })
+    gsap.set(glowRef.value, {
+      autoAlpha: 0,
+      scale: 0.55,
+      xPercent: -50,
+      yPercent: -40,
+    })
+    gsap.set(petalsRef.value?.querySelectorAll('.petal') ?? [], {
+      autoAlpha: 0,
+      x: 0,
+      y: 0,
+      scale: 0.2,
+      rotation: 0,
+    })
 
-    openTl = gsap.timeline({ defaults: { ease: 'power2.out' } })
+    openTl = gsap.timeline({
+      defaults: { ease: 'power2.out' },
+      onComplete: () => {
+        gsap.set(glowRef.value, { autoAlpha: 0 })
+      },
+    })
 
     openTl
       .addLabel('open', 0)
-      .to(introRef.value, { autoAlpha: 0, y: -12, duration: 0.45, ease: 'power1.out' }, 'open')
-      .to(starsRef.value, { autoAlpha: 0, duration: 0.8, ease: 'power1.out' }, 'open')
-      .to(
-        flapRef.value,
-        { rotationX: 180, duration: 0.55, ease: 'power2.inOut' },
-        'open',
-      )
-      .to(flapLiningRef.value, { autoAlpha: 1, duration: 0.2, ease: 'power1.out' }, 'open+=0.2')
+      .addLabel('flap', 0.08)
+      .addLabel('rise', 0.72)
+      .addLabel('shellOut', 2.05)
+      .addLabel('present', 2.55)
+
+      .to(introRef.value, { autoAlpha: 0, y: -18, duration: 0.55, ease: 'power2.inOut' }, 'open')
+      .to(starsRef.value, { autoAlpha: 0, duration: 1.1, ease: 'power1.inOut' }, 'open')
+
       .to(
         sealRef.value,
         {
           keyframes: [
             {
-              yPercent: -58,
-              scale: 1.14,
-              rotation: -8,
-              duration: 0.1925,
+              yPercent: -62,
+              scale: 1.16,
+              rotation: -10,
+              duration: 0.22,
               ease: 'power2.out',
             },
             {
-              xPercent: -8,
-              yPercent: 0,
-              y: 78,
-              scale: 0.68,
-              rotation: 28,
+              xPercent: -6,
+              yPercent: 12,
+              y: 86,
+              scale: 0.62,
+              rotation: 34,
               autoAlpha: 0,
-              duration: 0.3575,
-              ease: 'power3.out',
+              duration: 0.42,
+              ease: 'power3.in',
             },
           ],
         },
         'open',
       )
+      .add(burstPetals, 'open+=0.16')
+
+      .fromTo(
+        glowRef.value,
+        { autoAlpha: 0, scale: 0.45 },
+        { autoAlpha: 1, scale: 1.15, duration: 0.7, ease: 'power2.out' },
+        'open+=0.12',
+      )
+      .to(
+        glowRef.value,
+        { autoAlpha: 0.55, scale: 1.35, duration: 1.4, ease: 'sine.inOut' },
+        'open+=0.7',
+      )
+
+      .to(
+        flapRef.value,
+        { rotationX: 180, duration: 0.85, ease: 'power3.inOut' },
+        'flap',
+      )
+      .to(
+        flapLiningRef.value,
+        { autoAlpha: 1, duration: 0.28, ease: 'power1.out' },
+        'flap+=0.28',
+      )
+
       .to(
         letterRef.value,
         {
           autoAlpha: 1,
           yPercent: 0,
           y: 0,
-          duration: 1.6,
-          ease: 'power3.out',
+          duration: 1.85,
+          ease: 'power4.out',
         },
-        'open+=0.55',
+        'rise',
       )
+
       .to(
         getShellParts(),
-        { autoAlpha: 0, duration: 0.65, ease: 'power1.inOut' },
-        'open+=2.25',
+        { autoAlpha: 0, duration: 0.85, ease: 'power2.inOut' },
+        'shellOut',
       )
+      .to(
+        glowRef.value,
+        { autoAlpha: 0, scale: 1.6, duration: 0.7, ease: 'power1.inOut' },
+        'shellOut',
+      )
+
       .add(() => {
-        centerInvite()
-      }, `open+=${LETTER_EXIT_END}`)
-      .add(() => {
-        if (window.matchMedia(MOBILE_QUERY).matches) {
-          expandInviteFullscreen()
-        }
-      }, `open+=${OPEN_SEQUENCE_END}`)
+        presentAndExpand()
+      }, 'present')
   }
 
   if (ctx) ctx.add(run)
@@ -336,6 +453,7 @@ onMounted(() => {
     gsap.set(introRef.value, { xPercent: -50 })
     gsap.set(sealRef.value, { xPercent: -50, yPercent: -50, z: 48 })
     gsap.set(flapLiningRef.value, { autoAlpha: 0 })
+    gsap.set(glowRef.value, { autoAlpha: 0, xPercent: -50, yPercent: -40 })
     gsap.set(introHintRef.value, { opacity: 0.55 })
     startStarMotion()
     startIdleMotion()
@@ -394,6 +512,8 @@ onUnmounted(() => {
           <div ref="envelopeShadowRef" class="envelope-shadow" />
           <div ref="envelopeBodyRef" class="envelope-body" />
 
+          <div ref="glowRef" class="mouth-glow" aria-hidden="true" />
+
           <div ref="pocketRef" class="front pocket" aria-hidden="true" />
           <div ref="flapRef" class="front flap" aria-hidden="true">
             <div ref="flapLiningRef" class="flap-lining" />
@@ -408,6 +528,15 @@ onUnmounted(() => {
               width="54"
               height="54"
               draggable="false"
+            />
+          </div>
+
+          <div ref="petalsRef" class="petal-burst" aria-hidden="true">
+            <span
+              v-for="petal in petals"
+              :key="petal.id"
+              class="petal"
+              :class="`tone-${petal.tone}`"
             />
           </div>
 
@@ -568,6 +697,22 @@ onUnmounted(() => {
   pointer-events: none;
 }
 
+.mouth-glow {
+  position: absolute;
+  left: 50%;
+  top: 18%;
+  z-index: 2;
+  width: 160%;
+  height: 130%;
+  border-radius: 50%;
+  pointer-events: none;
+  background:
+    radial-gradient(circle, rgba(255, 236, 206, 0.55) 0%, rgba(201, 164, 108, 0.28) 35%, transparent 68%);
+  filter: blur(6px);
+  mix-blend-mode: screen;
+  will-change: transform, opacity;
+}
+
 .front {
   position: absolute;
   inset: 0;
@@ -672,6 +817,46 @@ onUnmounted(() => {
 
 .envelope.open .seal {
   z-index: 4;
+}
+
+.petal-burst {
+  position: absolute;
+  top: 48%;
+  left: 50%;
+  z-index: 9;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.petal {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 10px;
+  height: 14px;
+  margin: -7px 0 0 -5px;
+  border-radius: 60% 60% 55% 55% / 70% 70% 40% 40%;
+  opacity: 0;
+  will-change: transform, opacity;
+  background:
+    radial-gradient(circle at 35% 30%, #f0c4cb, var(--blush) 55%, var(--blush-deep) 100%);
+  box-shadow: 0 0 6px rgba(196, 122, 136, 0.35);
+}
+
+.petal.tone-1 {
+  width: 7px;
+  height: 11px;
+  background:
+    radial-gradient(circle at 40% 30%, #ffe8bf, var(--gold-soft) 60%, var(--gold) 100%);
+}
+
+.petal.tone-2 {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #fff8e7;
+  box-shadow: 0 0 8px rgba(255, 248, 231, 0.8);
 }
 
 @media (max-width: 768px) {

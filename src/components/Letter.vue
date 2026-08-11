@@ -1,5 +1,6 @@
 <script setup>
-import { ref } from 'vue'
+import { onUnmounted, ref } from 'vue'
+import gsap from 'gsap'
 
 defineProps({
   isOpen: { type: Boolean, default: false },
@@ -7,14 +8,139 @@ defineProps({
   isExpanded: { type: Boolean, default: false },
 })
 
+const SPARKLE_COUNT = 22
+
 const letterMouthRef = ref(null)
 const letterRef = ref(null)
 const letterSheetRef = ref(null)
+const backdropRef = ref(null)
+const sparklesRef = ref(null)
+const contentRef = ref(null)
+
+const sparkles = ref(
+  Array.from({ length: SPARKLE_COUNT }, (_, index) => {
+    const angle = (index / SPARKLE_COUNT) * Math.PI * 2
+    const radius = 38 + (index % 4) * 10
+    return {
+      id: index,
+      left: `${50 + Math.cos(angle) * radius * 0.42}%`,
+      top: `${48 + Math.sin(angle) * radius * 0.55}%`,
+      size: index % 5 === 0 ? 3.2 : index % 2 === 0 ? 2.1 : 1.3,
+      delay: (index % 7) * 0.08,
+    }
+  }),
+)
+
+let revealTl
+let sparkleTl
+
+function prefersReducedMotion() {
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+}
+
+function getRevealTargets() {
+  return contentRef.value?.querySelectorAll('[data-reveal]') ?? []
+}
+
+function prepareContentReveal() {
+  revealTl?.kill()
+  const targets = getRevealTargets()
+  if (!targets.length) return
+  gsap.set(targets, { autoAlpha: 0, y: 22 })
+}
+
+function playContentReveal() {
+  revealTl?.kill()
+  const targets = getRevealTargets()
+  if (!targets.length) return
+
+  if (prefersReducedMotion()) {
+    gsap.set(targets, { autoAlpha: 1, y: 0, clearProps: 'transform' })
+    return
+  }
+
+  gsap.set(targets, { autoAlpha: 0, y: 18 })
+  revealTl = gsap.timeline({ defaults: { ease: 'power3.out' } })
+  revealTl.to(targets, {
+    autoAlpha: 1,
+    y: 0,
+    duration: 0.72,
+    stagger: 0.1,
+  })
+}
+
+function playSparkles() {
+  sparkleTl?.kill()
+  const nodes = sparklesRef.value?.querySelectorAll('.invite-sparkle')
+  if (!nodes?.length || prefersReducedMotion()) return
+
+  gsap.set(nodes, { autoAlpha: 0, scale: 0.35 })
+  sparkleTl = gsap.timeline()
+  nodes.forEach((node, index) => {
+    const meta = sparkles.value[index]
+    sparkleTl.fromTo(
+      node,
+      { autoAlpha: 0, scale: 0.2, rotation: -20 },
+      {
+        autoAlpha: 0.95,
+        scale: 1,
+        rotation: 0,
+        duration: 0.55,
+        ease: 'back.out(2)',
+        delay: meta?.delay ?? 0,
+      },
+      0,
+    )
+    sparkleTl.to(
+      node,
+      {
+        autoAlpha: 0.25,
+        y: '-=6',
+        duration: 1.4 + (index % 4) * 0.2,
+        repeat: -1,
+        yoyo: true,
+        ease: 'sine.inOut',
+      },
+      0.4,
+    )
+  })
+}
+
+async function fadeBackdrop(show) {
+  const el = backdropRef.value
+  if (!el) return
+  if (prefersReducedMotion()) {
+    gsap.set(el, { autoAlpha: show ? 1 : 0 })
+    return
+  }
+  await gsap.to(el, {
+    autoAlpha: show ? 1 : 0,
+    duration: show ? 0.95 : 0.4,
+    ease: show ? 'power2.out' : 'power1.in',
+  })
+}
+
+function presentInvite() {
+  fadeBackdrop(true)
+  playContentReveal()
+  playSparkles()
+}
+
+onUnmounted(() => {
+  revealTl?.kill()
+  sparkleTl?.kill()
+})
 
 defineExpose({
   letterMouthRef,
   letterRef,
   letterSheetRef,
+  backdropRef,
+  prepareContentReveal,
+  playContentReveal,
+  playSparkles,
+  fadeBackdrop,
+  presentInvite,
 })
 </script>
 
@@ -24,30 +150,52 @@ defineExpose({
     class="letter-mouth"
     :class="{ open: isOpen, centered: isCentered, expanded: isExpanded }"
   >
+    <div
+      ref="backdropRef"
+      class="invite-backdrop"
+      aria-hidden="true"
+    />
+
     <article
       ref="letterRef"
       class="letter"
       :class="{ open: isOpen, centered: isCentered, expanded: isExpanded }"
       aria-live="polite"
     >
+      <div ref="sparklesRef" class="invite-sparkles" aria-hidden="true">
+        <span
+          v-for="sparkle in sparkles"
+          :key="sparkle.id"
+          class="invite-sparkle"
+          :style="{
+            left: sparkle.left,
+            top: sparkle.top,
+            width: `${sparkle.size}px`,
+            height: `${sparkle.size}px`,
+          }"
+        />
+      </div>
+
       <div ref="letterSheetRef" class="letter-sheet">
         <div class="invitation-glow" aria-hidden="true" />
-        <p class="invite-eyebrow">Você está convidado</p>
-        <h2 class="invite-name">Kamilly</h2>
-        <div class="invite-ornament" aria-hidden="true">
-          <span />
-          <i />
-          <span />
+        <div ref="contentRef" class="invite-content">
+          <p class="invite-eyebrow" data-reveal>Você está convidado</p>
+          <h2 class="invite-name" data-reveal>Kamilly</h2>
+          <div class="invite-ornament" data-reveal aria-hidden="true">
+            <span />
+            <i />
+            <span />
+          </div>
+          <p class="invite-message" data-reveal>
+            Com muito carinho, convido você para celebrar este momento especial ao meu lado.
+          </p>
+          <div class="invite-details" data-reveal>
+            <p><strong>Data</strong><span>Sábado, 15 de agosto</span></p>
+            <p><strong>Horário</strong><span>16h00</span></p>
+            <p><strong>Local</strong><span>Espaço a confirmar</span></p>
+          </div>
+          <p class="invite-closing" data-reveal>Espero por você</p>
         </div>
-        <p class="invite-message">
-          Com muito carinho, convido você para celebrar este momento especial ao meu lado.
-        </p>
-        <div class="invite-details">
-          <p><strong>Data</strong><span>Sábado, 15 de agosto</span></p>
-          <p><strong>Horário</strong><span>16h00</span></p>
-          <p><strong>Local</strong><span>Espaço a confirmar</span></p>
-        </div>
-        <p class="invite-closing">Espero por você</p>
       </div>
     </article>
   </div>
@@ -116,12 +264,27 @@ defineExpose({
   -webkit-overflow-scrolling: touch;
 }
 
+.invite-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  background:
+    radial-gradient(ellipse 70% 55% at 50% 42%, rgba(255, 246, 236, 0.16), transparent 68%),
+    radial-gradient(ellipse 100% 80% at 50% 100%, rgba(6, 18, 41, 0.55), transparent 60%),
+    linear-gradient(180deg, rgba(6, 18, 41, 0.35) 0%, rgba(8, 20, 40, 0.72) 100%);
+  backdrop-filter: blur(2px);
+}
+
 .letter.open.centered {
   position: relative;
+  z-index: 1;
   left: auto;
   right: auto;
   bottom: auto;
-  width: min(90vw, 300px);
+  width: min(90vw, 320px);
   max-width: 100%;
   min-height: auto;
   transform: none;
@@ -137,8 +300,26 @@ defineExpose({
   will-change: transform;
 }
 
+.invite-sparkles {
+  position: absolute;
+  inset: -18% -14%;
+  z-index: 2;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.invite-sparkle {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff8e7 0%, var(--gold-soft) 55%, transparent 75%);
+  box-shadow: 0 0 8px rgba(226, 201, 154, 0.75);
+  opacity: 0;
+  will-change: transform, opacity;
+}
+
 .letter-sheet {
   position: relative;
+  z-index: 1;
   width: 100%;
   max-width: 100%;
   padding: 2rem 1.5rem 1.8rem;
@@ -161,6 +342,10 @@ defineExpose({
   background: radial-gradient(ellipse, rgba(255, 248, 242, 0.7), transparent 65%);
   filter: blur(8px);
   pointer-events: none;
+}
+
+.invite-content {
+  position: relative;
 }
 
 .invite-eyebrow {
@@ -278,6 +463,10 @@ defineExpose({
     min-height: 100dvh;
   }
 
+  .letter.open.centered.expanded .invite-sparkles {
+    inset: 4% 2%;
+  }
+
   .letter.open.centered.expanded .letter-sheet {
     width: 100%;
     max-width: 100%;
@@ -294,6 +483,13 @@ defineExpose({
       max(2.2rem, env(safe-area-inset-bottom, 0px))
       max(1.35rem, env(safe-area-inset-left, 0px));
     box-shadow: none;
+  }
+
+  .letter.open.centered.expanded .invite-backdrop {
+    background:
+      radial-gradient(ellipse 90% 70% at 50% 30%, rgba(255, 244, 236, 0.22), transparent 70%),
+      linear-gradient(180deg, rgba(247, 242, 238, 0.08), rgba(247, 242, 238, 0));
+    backdrop-filter: none;
   }
 }
 </style>
