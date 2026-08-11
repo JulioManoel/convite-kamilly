@@ -2,17 +2,31 @@
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import gsap from 'gsap'
 import Letter from './Letter.vue'
+import sealImage from '../assets/k.webp'
 
 const LETTER_EXIT_END = 2.2
 const OPEN_SEQUENCE_END = 3.2
 const LETTER_TUCK = 220
 const MOBILE_QUERY = '(max-width: 768px)'
+const STAR_COUNT = 72
 
 const phase = ref('idle') // idle | open
 const isCentered = ref(false)
 const isExpanded = ref(false)
+const stars = ref(
+  Array.from({ length: STAR_COUNT }, (_, index) => ({
+    id: index,
+    left: `${Math.random() * 100}%`,
+    top: `${Math.random() * 100}%`,
+    size: Math.random() < 0.18 ? 2.5 : Math.random() < 0.55 ? 1.6 : 1,
+    delay: Math.random() * 4,
+    duration: 1.6 + Math.random() * 2.8,
+    opacity: 0.35 + Math.random() * 0.65,
+  })),
+)
 
 const sceneRef = ref(null)
+const starsRef = ref(null)
 const introRef = ref(null)
 const introHintRef = ref(null)
 const envelopeStageRef = ref(null)
@@ -34,10 +48,39 @@ const letterSheetRef = computed(() => letterComponentRef.value?.letterSheetRef ?
 
 let ctx
 let idleTl
+let starsTl
 let openTl
 
 function prefersReducedMotion() {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+}
+
+function startStarMotion() {
+  starsTl?.kill()
+  starsTl = null
+
+  const nodes = starsRef.value?.querySelectorAll('.star')
+  if (!nodes?.length || prefersReducedMotion()) return
+
+  starsTl = gsap.timeline()
+  nodes.forEach((star, index) => {
+    const meta = stars.value[index]
+    if (!meta) return
+
+    gsap.set(star, { opacity: meta.opacity * 0.35 })
+    starsTl.to(
+      star,
+      {
+        opacity: meta.opacity,
+        duration: meta.duration,
+        delay: meta.delay,
+        repeat: -1,
+        yoyo: true,
+        ease: 'sine.inOut',
+      },
+      0,
+    )
+  })
 }
 
 function getShellParts() {
@@ -54,6 +97,15 @@ function killIdleMotion() {
   idleTl = null
   if (envelopeStageRef.value) gsap.set(envelopeStageRef.value, { y: 0 })
   if (envelopeShadowRef.value) gsap.set(envelopeShadowRef.value, { clearProps: 'scaleX,opacity' })
+  if (sealRef.value) {
+    gsap.set(sealRef.value, {
+      xPercent: -50,
+      yPercent: -50,
+      z: 48,
+      scale: 1,
+      rotation: 0,
+    })
+  }
 }
 
 function startIdleMotion() {
@@ -152,8 +204,10 @@ async function expandInviteFullscreen() {
 
 function snapOpenInstant() {
   killIdleMotion()
+  starsTl?.kill()
 
   gsap.set(introRef.value, { autoAlpha: 0, y: -12 })
+  gsap.set(starsRef.value, { autoAlpha: 0 })
   gsap.set(flapRef.value, { rotationX: 180, transformOrigin: '50% 0%' })
   gsap.set(flapLiningRef.value, { autoAlpha: 1 })
   gsap.set(sealRef.value, { autoAlpha: 0 })
@@ -169,6 +223,7 @@ function snapOpenInstant() {
 function playOpenSequence() {
   killIdleMotion()
   openTl?.kill()
+  starsTl?.kill()
 
   const run = () => {
     gsap.set(sealRef.value, {
@@ -176,6 +231,7 @@ function playOpenSequence() {
       yPercent: -50,
       x: 0,
       y: 0,
+      z: 48,
       scale: 1,
       rotation: 0,
       autoAlpha: 1,
@@ -194,6 +250,7 @@ function playOpenSequence() {
     openTl
       .addLabel('open', 0)
       .to(introRef.value, { autoAlpha: 0, y: -12, duration: 0.45, ease: 'power1.out' }, 'open')
+      .to(starsRef.value, { autoAlpha: 0, duration: 0.8, ease: 'power1.out' }, 'open')
       .to(
         flapRef.value,
         { rotationX: 180, duration: 0.55, ease: 'power2.inOut' },
@@ -277,9 +334,10 @@ function onKeydown(event) {
 onMounted(() => {
   ctx = gsap.context(() => {
     gsap.set(introRef.value, { xPercent: -50 })
-    gsap.set(sealRef.value, { xPercent: -50, yPercent: -50 })
+    gsap.set(sealRef.value, { xPercent: -50, yPercent: -50, z: 48 })
     gsap.set(flapLiningRef.value, { autoAlpha: 0 })
     gsap.set(introHintRef.value, { opacity: 0.55 })
+    startStarMotion()
     startIdleMotion()
   }, sceneRef)
 
@@ -290,6 +348,7 @@ onUnmounted(() => {
   window.removeEventListener('keydown', onKeydown)
   openTl?.kill()
   idleTl?.kill()
+  starsTl?.kill()
   ctx?.revert()
 })
 </script>
@@ -300,6 +359,20 @@ onUnmounted(() => {
     class="scene"
     :class="{ 'is-open': isOpen, 'is-centered': isCentered, 'is-expanded': isExpanded }"
   >
+    <div ref="starsRef" class="starfield" aria-hidden="true">
+      <span
+        v-for="star in stars"
+        :key="star.id"
+        class="star"
+        :style="{
+          left: star.left,
+          top: star.top,
+          width: `${star.size}px`,
+          height: `${star.size}px`,
+        }"
+      />
+    </div>
+
     <header ref="introRef" class="intro" :class="{ 'is-hidden': isOpen }">
       <p class="intro-label">Para você</p>
       <h1 class="brand">Kamilly</h1>
@@ -328,7 +401,14 @@ onUnmounted(() => {
 
           <div ref="sealRef" class="seal" aria-hidden="true">
             <span ref="sealRingRef" class="seal-ring" />
-            <span class="seal-core">K</span>
+            <img
+              class="seal-image"
+              :src="sealImage"
+              alt="Selo Kamilly"
+              width="54"
+              height="54"
+              draggable="false"
+            />
           </div>
 
           <Teleport to="body" :disabled="!isCentered">
@@ -353,6 +433,26 @@ onUnmounted(() => {
   place-items: center;
   padding: 2.5rem 1.25rem 3rem;
   overflow: hidden;
+  background:
+    radial-gradient(ellipse 120% 80% at 50% -10%, #1a3a6b 0%, transparent 55%),
+    radial-gradient(ellipse 90% 60% at 80% 100%, #0c1a38 0%, transparent 50%),
+    linear-gradient(180deg, #061229 0%, #0a1c3d 42%, #081428 100%);
+}
+
+.starfield {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.star {
+  position: absolute;
+  border-radius: 50%;
+  background: #fff8e7;
+  box-shadow: 0 0 6px rgba(255, 248, 231, 0.85);
+  will-change: opacity;
 }
 
 .intro {
@@ -369,28 +469,29 @@ onUnmounted(() => {
 
 .intro-label {
   font-family: 'Outfit', sans-serif;
-  font-size: 0.75rem;
+  font-size: 0.9rem;
   font-weight: 400;
   letter-spacing: 0.35em;
   text-transform: uppercase;
-  color: var(--ink-soft);
+  color: var(--gold-soft);
 }
 
 .brand {
   font-family: 'Great Vibes', cursive;
-  font-size: clamp(3.2rem, 10vw, 5rem);
+  font-size: clamp(3.8rem, 12vw, 5.8rem);
   font-weight: 400;
   line-height: 1;
-  color: var(--ink);
+  color: var(--gold);
   margin-top: 0.15rem;
+  text-shadow: 0 2px 18px rgba(201, 164, 108, 0.35);
 }
 
 .intro-hint {
   margin-top: 0.65rem;
-  font-size: 0.85rem;
+  font-size: 1rem;
   font-weight: 300;
   letter-spacing: 0.08em;
-  color: var(--ink-soft);
+  color: var(--gold-soft);
 }
 
 .stage {
@@ -400,6 +501,7 @@ onUnmounted(() => {
   display: grid;
   place-items: center;
   perspective: 1200px;
+  z-index: 1;
 }
 
 .envelope-stage {
@@ -422,7 +524,7 @@ onUnmounted(() => {
   border-bottom-left-radius: 8px;
   border-bottom-right-radius: 8px;
   background: linear-gradient(160deg, #758588 0%, var(--envelope-dark) 100%);
-  box-shadow: 0 14px 36px rgba(42, 36, 48, 0.22);
+  box-shadow: 0 14px 36px rgba(6, 18, 41, 0.45);
   transform-style: preserve-3d;
   cursor: pointer;
   overflow: visible;
@@ -450,7 +552,7 @@ onUnmounted(() => {
   bottom: -18px;
   height: 28px;
   border-radius: 50%;
-  background: radial-gradient(ellipse, var(--shadow), transparent 70%);
+  background: radial-gradient(ellipse, rgba(4, 10, 24, 0.55), transparent 70%);
   filter: blur(2px);
   opacity: 0.85;
   pointer-events: none;
@@ -530,10 +632,11 @@ onUnmounted(() => {
   background:
     radial-gradient(circle at 35% 30%, #c97886, var(--rose-seal) 55%, #8a4452 100%);
   box-shadow:
-    0 6px 14px rgba(42, 36, 48, 0.28),
+    0 6px 14px rgba(6, 18, 41, 0.35),
     inset 0 2px 4px rgba(255, 255, 255, 0.25),
     inset 0 -3px 6px rgba(0, 0, 0, 0.2);
   pointer-events: none;
+  overflow: visible;
 }
 
 .seal::before {
@@ -542,6 +645,8 @@ onUnmounted(() => {
   inset: 5px;
   border-radius: 50%;
   border: 1px solid rgba(226, 201, 154, 0.55);
+  z-index: 1;
+  pointer-events: none;
 }
 
 .seal-ring {
@@ -549,14 +654,20 @@ onUnmounted(() => {
   inset: -4px;
   border-radius: 50%;
   border: 1px dashed rgba(201, 164, 108, 0.45);
+  pointer-events: none;
 }
 
-.seal-core {
+.seal-image {
   position: relative;
-  font-family: 'Great Vibes', cursive;
-  font-size: 1.45rem;
-  color: var(--gold-soft);
-  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.25);
+  z-index: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  user-select: none;
+  -webkit-user-drag: none;
+  pointer-events: none;
 }
 
 .envelope.open .seal {
