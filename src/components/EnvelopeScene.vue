@@ -522,7 +522,7 @@ onUnmounted(() => {
     </div>
 
     <header ref="introRef" class="intro" :class="{ 'is-hidden': isOpen }">
-      <p class="intro-label">Para você</p>
+      <p class="intro-label">Para você de</p>
       <h1 class="brand">Kamilly</h1>
       <p ref="introHintRef" class="intro-hint">Toque na carta para abrir</p>
     </header>
@@ -636,7 +636,7 @@ onUnmounted(() => {
 }
 
 .brand {
-  font-family: 'Great Vibes', cursive;
+  font-family: 'Parisienne', cursive;
   font-size: clamp(3.8rem, 12vw, 5.8rem);
   font-weight: 400;
   line-height: 1;

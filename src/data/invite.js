@@ -59,7 +59,8 @@ export const quote = {
 export const invitation = {
   loveMessage:
     'Com muito amor, tenho a alegria de convidar vocês para comemorar um novo capítulo da minha vida.',
-  guestName: 'Kamilly Manoel',
+  guestFirstName: 'Kamilly',
+  guestLastName: 'Manoel',
   closingMessage: 'Conto com a sua presença.',
 }
 

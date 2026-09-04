@@ -498,7 +498,10 @@ defineExpose({
 
             <!-- 4. Nome -->
             <section class="invite-section" data-scroll-reveal>
-              <h2 class="invite-guest-name">{{ invitation.guestName }}</h2>
+              <h2 class="invite-guest-name">
+                <span class="invite-guest-name__first">{{ invitation.guestFirstName }}</span>
+                <span class="invite-guest-name__last">{{ invitation.guestLastName }}</span>
+              </h2>
             </section>
 
             <GoldDivider />
@@ -923,11 +926,24 @@ defineExpose({
 }
 
 .invite-guest-name {
-  font-family: 'Great Vibes', cursive;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  margin-inline: auto;
+  font-family: 'Parisienne', cursive;
   font-size: clamp(3.2rem, 14vw, 4.8rem);
   font-weight: 400;
-  line-height: 1;
+  line-height: 0.85;
   color: var(--vn-gold);
+}
+
+.invite-guest-name__first {
+  transform: translateX(-0.65em);
+}
+
+.invite-guest-name__last {
+  transform: translateX(0.65em);
 }
 
 .invite-location__address {
