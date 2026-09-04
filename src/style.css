@@ -1,4 +1,5 @@
 :root {
+  /* Envelope / seal only */
   --ink: #2a2430;
   --ink-soft: #5c5363;
   --blush: #e8b4bc;
@@ -14,6 +15,29 @@
   --mist: #d8e0dc;
   --sky: #c5d4d8;
   --shadow: rgba(42, 36, 48, 0.28);
+
+  /* Van Gogh invite tokens */
+  --vn-sky-deep: #061229;
+  --vn-sky-mid: #0a1c3d;
+  --vn-blue-deep: #1a3a6c;
+  --vn-blue-mid: #2d5a9e;
+  --vn-blue-light: #4a7ab8;
+  --vn-cream: #f5f0e8;
+  --vn-paper: #fffaf4;
+  --vn-paper-shadow: #ebe4d8;
+  --vn-gold: #d4a843;
+  --vn-gold-soft: #e8c97a;
+  --vn-gold-glow: rgba(212, 168, 67, 0.35);
+  --vn-star: #ffd660;
+  --vn-moon: #ffb84d;
+  --vn-star-glow: #fff8e7;
+  --vn-ink: #1b2d4f;
+  --vn-ink-soft: #3d5278;
+  --vn-ink-muted: #5c6d8a;
+  --vn-gradient-sky: linear-gradient(180deg, #061229 0%, #0a1c3d 42%, #081428 100%);
+  --vn-gradient-paper: linear-gradient(165deg, #fffaf4 0%, #f5f0e8 48%, #ebe4d8 100%);
+  --vn-gradient-gold-line: linear-gradient(90deg, transparent, #d4a843, transparent);
+  --vn-gradient-moon: radial-gradient(circle, #ffd660 0%, #ffb84d 40%, transparent 70%);
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
