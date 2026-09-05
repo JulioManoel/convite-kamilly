@@ -18,7 +18,7 @@ export const event = {
 export const dressCode = {
   title: 'Dress Code',
   description:
-    'Não recomendamos o uso dessas cores nem as que remetam à Noite Estrelada.',
+    'Não recomendamos o uso destas cores, nem as que remetam ao tema Noite Estrelada.',
   colors: [
     { hex: '#1a3a6c', label: 'Azul noite' },
     { hex: '#2d5a9e', label: 'Azul royal' },

@@ -17,6 +17,7 @@ const stepPanelRef = ref(null)
 const dressRingRef = ref(null)
 const step = ref('dress-code')
 const isTransitioning = ref(false)
+const rsvpConfirmed = ref(false)
 
 const titleId = computed(() =>
   step.value === 'dress-code' ? 'dress-code-title' : 'invite-modal-title',
@@ -284,6 +285,7 @@ function teardownFocusTrap() {
 }
 
 function onRsvpSuccess(payload) {
+  rsvpConfirmed.value = true
   emit('rsvp-success', payload)
 }
 
@@ -292,12 +294,14 @@ watch(
   async (isOpen) => {
     if (isOpen) {
       step.value = 'dress-code'
+      rsvpConfirmed.value = false
       await nextTick()
       animateOpen()
       setupFocusTrap()
     } else {
       teardownFocusTrap()
       step.value = 'dress-code'
+      rsvpConfirmed.value = false
     }
   },
 )
@@ -384,7 +388,9 @@ onUnmounted(() => {
           </section>
 
           <section v-else class="invite-modal__rsvp" aria-labelledby="invite-modal-title">
-            <h2 id="invite-modal-title" class="invite-modal__title">Confirmar presença</h2>
+            <h2 id="invite-modal-title" class="invite-modal__title">
+              {{ rsvpConfirmed ? 'Presença confirmada' : 'Confirmar presença' }}
+            </h2>
             <RsvpForm @success="onRsvpSuccess" />
           </section>
         </div>
