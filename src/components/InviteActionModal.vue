@@ -15,27 +15,87 @@ const overlayRef = ref(null)
 const modalRef = ref(null)
 const stepPanelRef = ref(null)
 const dressRingRef = ref(null)
-const closeTimer = ref(null)
 const step = ref('dress-code')
+const isTransitioning = ref(false)
 
 const titleId = computed(() =>
   step.value === 'dress-code' ? 'dress-code-title' : 'invite-modal-title',
 )
 
 let focusTrapHandler
+let dressTl
+let stepTl
 
 function prefersReducedMotion() {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches
 }
 
+function getDressTargets() {
+  const ring = dressRingRef.value
+  if (!ring) return null
+  return {
+    ring,
+    swatches: ring.querySelectorAll('.dress-code__swatch'),
+  }
+}
+
+/** Hide swatches before the panel/modal is visible to avoid flash. */
+function prepareDressCodeHidden() {
+  const targets = getDressTargets()
+  if (!targets) return null
+
+  dressTl?.kill()
+  gsap.killTweensOf([targets.ring, targets.swatches])
+  gsap.set(targets.ring, { scale: 0.9 })
+  gsap.set(targets.swatches, { autoAlpha: 0, scale: 0.55 })
+  return targets
+}
+
+function showDressCodeInstant() {
+  const targets = getDressTargets()
+  if (!targets) return
+  dressTl?.kill()
+  gsap.set(targets.ring, { scale: 1 })
+  gsap.set(targets.swatches, { autoAlpha: 1, scale: 1 })
+}
+
+function playDressCodeReveal() {
+  if (prefersReducedMotion()) {
+    showDressCodeInstant()
+    return
+  }
+
+  const targets = prepareDressCodeHidden()
+  if (!targets) return
+
+  dressTl = gsap.timeline()
+  dressTl
+    .to(targets.ring, { scale: 1, duration: 0.42, ease: 'back.out(1.35)' })
+    .to(
+      targets.swatches,
+      {
+        autoAlpha: 1,
+        scale: 1,
+        duration: 0.38,
+        stagger: 0.07,
+        ease: 'back.out(1.5)',
+      },
+      0.08,
+    )
+}
+
 function animateOpen() {
   const overlay = overlayRef.value
   const modal = modalRef.value
+  const panel = stepPanelRef.value
   if (!overlay || !modal) return
+
+  if (panel) gsap.set(panel, { clearProps: 'transform,opacity,visibility' })
+  prepareDressCodeHidden()
 
   if (prefersReducedMotion()) {
     gsap.set([overlay, modal], { autoAlpha: 1, scale: 1 })
-    animateDressCode()
+    showDressCodeInstant()
     return
   }
 
@@ -47,7 +107,7 @@ function animateOpen() {
     scale: 1,
     duration: 0.45,
     ease: 'back.out(1.4)',
-    onComplete: animateDressCode,
+    onComplete: playDressCodeReveal,
   })
 }
 
@@ -58,6 +118,8 @@ function animateClose(callback) {
     callback?.()
     return
   }
+
+  dressTl?.kill()
 
   if (prefersReducedMotion()) {
     gsap.set([overlay, modal], { autoAlpha: 0 })
@@ -74,50 +136,112 @@ function animateClose(callback) {
   })
 }
 
-function animateDressCode() {
-  const ring = dressRingRef.value
-  if (!ring || prefersReducedMotion()) return
+async function goToRsvp() {
+  if (step.value !== 'dress-code' || isTransitioning.value) return
+  isTransitioning.value = true
 
-  const swatches = ring.querySelectorAll('.dress-code__swatch')
-  gsap.fromTo(ring, { scale: 0.85 }, { scale: 1, duration: 0.4, ease: 'back.out(1.4)' })
-  gsap.fromTo(
-    swatches,
-    { autoAlpha: 0, scale: 0.5 },
-    { autoAlpha: 1, scale: 1, duration: 0.3, stagger: 0.05, ease: 'power2.out', delay: 0.15 },
-  )
-}
-
-async function animateStepChange(nextStep) {
   const panel = stepPanelRef.value
+  dressTl?.kill()
 
   if (!panel || prefersReducedMotion()) {
-    step.value = nextStep
+    step.value = 'rsvp'
     await nextTick()
     teardownFocusTrap()
     setupFocusTrap()
-    if (nextStep === 'dress-code') animateDressCode()
+    isTransitioning.value = false
     return
   }
 
-  await gsap.to(panel, { autoAlpha: 0, y: -8, duration: 0.2, ease: 'power2.in' })
-  step.value = nextStep
+  const dressSection = panel.querySelector('.dress-code')
+  const swatches = panel.querySelectorAll('.dress-code__swatch')
+  const exitTargets = dressSection
+    ? [
+        dressSection.querySelector('.dress-code__title'),
+        dressSection.querySelector('.dress-code__description'),
+        dressSection.querySelector('.invite-modal__next'),
+      ].filter(Boolean)
+    : []
+
+  stepTl?.kill()
+  stepTl = gsap.timeline()
+
+  stepTl
+    .to(
+      swatches,
+      {
+        autoAlpha: 0,
+        scale: 0.55,
+        duration: 0.22,
+        stagger: { each: 0.04, from: 'center' },
+        ease: 'power2.in',
+      },
+      0,
+    )
+    .to(
+      exitTargets,
+      {
+        autoAlpha: 0,
+        y: -12,
+        duration: 0.24,
+        stagger: 0.04,
+        ease: 'power2.in',
+      },
+      0.06,
+    )
+    .to(
+      panel,
+      {
+        autoAlpha: 0,
+        x: -28,
+        scale: 0.98,
+        duration: 0.3,
+        ease: 'power2.in',
+      },
+      0.18,
+    )
+
+  await stepTl
+
+  step.value = 'rsvp'
   await nextTick()
-  gsap.set(panel, { y: 8 })
-  await gsap.to(panel, { autoAlpha: 1, y: 0, duration: 0.25, ease: 'power2.out' })
-  teardownFocusTrap()
-  setupFocusTrap()
-  if (nextStep === 'dress-code') animateDressCode()
-}
 
-function goToRsvp() {
-  animateStepChange('rsvp')
-}
+  const enterTargets = panel.querySelectorAll('.invite-modal__rsvp > *')
+  gsap.set(panel, { autoAlpha: 0, x: 32, scale: 0.98 })
+  gsap.set(enterTargets, { autoAlpha: 0, y: 16 })
 
-function goToDressCode() {
-  animateStepChange('dress-code')
+  stepTl = gsap.timeline({
+    onComplete: () => {
+      teardownFocusTrap()
+      setupFocusTrap()
+      isTransitioning.value = false
+    },
+  })
+
+  stepTl
+    .to(panel, {
+      autoAlpha: 1,
+      x: 0,
+      scale: 1,
+      duration: 0.4,
+      ease: 'power3.out',
+    })
+    .to(
+      enterTargets,
+      {
+        autoAlpha: 1,
+        y: 0,
+        duration: 0.38,
+        stagger: 0.09,
+        ease: 'power3.out',
+      },
+      '-=0.18',
+    )
 }
 
 function handleClose() {
+  stepTl?.kill()
+  dressTl?.kill()
+  isTransitioning.value = false
   animateClose(() => {
     step.value = 'dress-code'
     emit('close')
@@ -161,9 +285,6 @@ function teardownFocusTrap() {
 
 function onRsvpSuccess(payload) {
   emit('rsvp-success', payload)
-  closeTimer.value = setTimeout(() => {
-    handleClose()
-  }, 2500)
 }
 
 watch(
@@ -177,10 +298,6 @@ watch(
     } else {
       teardownFocusTrap()
       step.value = 'dress-code'
-      if (closeTimer.value) {
-        clearTimeout(closeTimer.value)
-        closeTimer.value = null
-      }
     }
   },
 )
@@ -192,7 +309,8 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeydown)
   teardownFocusTrap()
-  if (closeTimer.value) clearTimeout(closeTimer.value)
+  dressTl?.kill()
+  stepTl?.kill()
 })
 </script>
 
@@ -250,15 +368,17 @@ onUnmounted(() => {
 
             <p class="dress-code__description">{{ dressCode.description }}</p>
 
-            <button type="button" class="invite-modal__next" @click="goToRsvp">
+            <button
+              type="button"
+              class="invite-modal__next"
+              :disabled="isTransitioning"
+              @click="goToRsvp"
+            >
               Confirmar presença
             </button>
           </section>
 
           <section v-else class="invite-modal__rsvp" aria-labelledby="invite-modal-title">
-            <button type="button" class="invite-modal__back" @click="goToDressCode">
-              ← Dress Code
-            </button>
             <h2 id="invite-modal-title" class="invite-modal__title">Confirmar presença</h2>
             <RsvpForm @success="onRsvpSuccess" />
           </section>
@@ -353,21 +473,13 @@ onUnmounted(() => {
   outline-offset: 2px;
 }
 
-.invite-modal__back {
-  display: block;
-  margin: 0 auto 1rem;
-  padding: 0.35rem 0.5rem;
-  font-family: 'Outfit', sans-serif;
-  font-size: 0.75rem;
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--vn-ink-soft);
+.invite-modal__next:disabled {
+  opacity: 0.7;
+  cursor: wait;
 }
 
-.invite-modal__back:focus-visible {
-  outline: 2px solid var(--vn-gold);
-  outline-offset: 2px;
+.invite-modal__rsvp {
+  text-align: center;
 }
 
 .dress-code {
@@ -403,12 +515,14 @@ onUnmounted(() => {
   aspect-ratio: 1;
   border-radius: 50%;
   background: var(--swatch-color);
-  transition: transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 2px 8px rgba(27, 45, 79, 0.12);
+  opacity: 0;
+  visibility: hidden;
+  transition: box-shadow 0.2s ease;
 }
 
 .dress-code__swatch:hover {
-  transform: scale(1.08);
-  box-shadow: 0 0 8px var(--vn-gold-glow);
+  box-shadow: 0 0 10px var(--vn-gold-glow);
 }
 
 .dress-code__description {

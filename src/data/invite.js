@@ -1,4 +1,8 @@
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore'
+import { db } from '../lib/firebase.js'
+
 export const RSVP_STORAGE_KEY = 'kamilly_rsvp'
+export const RSVP_COLLECTION = 'rsvps'
 
 export const event = {
   date: new Date('2026-09-19T19:00:00'),
@@ -97,16 +101,39 @@ export function loadRsvp() {
 }
 
 export function isRsvpConfirmed() {
-  return loadRsvp()?.confirmed === true
+  const saved = loadRsvp()
+  return Boolean(saved?.id || saved?.name)
 }
 
-export function saveRsvp(payload) {
+function saveRsvpLocal(payload) {
   localStorage.setItem(
     RSVP_STORAGE_KEY,
     JSON.stringify({
       ...payload,
-      confirmed: true,
-      confirmedAt: new Date().toISOString(),
+      savedAt: new Date().toISOString(),
     }),
   )
+}
+
+/**
+ * Persists RSVP to Firestore (`rsvps`) and mirrors confirmation in localStorage.
+ */
+export async function saveRsvp(payload) {
+  const docRef = await addDoc(collection(db, RSVP_COLLECTION), {
+    name: payload.name,
+    guestCount: payload.guestCount,
+    hasChild: payload.hasChild,
+    childNames: payload.childNames ?? [],
+    createdAt: serverTimestamp(),
+  })
+
+  saveRsvpLocal({
+    name: payload.name,
+    guestCount: payload.guestCount,
+    hasChild: payload.hasChild,
+    childNames: payload.childNames ?? [],
+    id: docRef.id,
+  })
+
+  return docRef.id
 }

@@ -1,0 +1,49 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: rsvps/{rsvpId}
+    // - name: string (2–120 chars)
+    // - guestCount: int (1–20)
+    // - hasChild: bool
+    // - childNames: list<string>
+    // - createdAt: timestamp
+    //
+    // Public invite: anyone may CREATE an RSVP.
+    // Read/update/delete are denied from the client (manage in Console).
+    // ===============================================================
+
+    function isValidRsvp() {
+      let data = request.resource.data;
+      return data.keys().hasOnly([
+          'name',
+          'guestCount',
+          'hasChild',
+          'childNames',
+          'createdAt',
+        ])
+        && data.name is string
+        && data.name.size() >= 2
+        && data.name.size() <= 120
+        && data.guestCount is int
+        && data.guestCount >= 1
+        && data.guestCount <= 20
+        && data.hasChild is bool
+        && data.childNames is list
+        && data.childNames.size() <= 10
+        && (
+          (data.hasChild == false && data.childNames.size() == 0)
+          || (data.hasChild == true && data.childNames.size() >= 1)
+        )
+        && data.createdAt is timestamp;
+    }
+
+    match /rsvps/{rsvpId} {
+      allow create: if isValidRsvp();
+      allow read, update, delete: if false;
+    }
+  }
+}
