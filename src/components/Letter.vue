@@ -289,8 +289,8 @@ function setupArrowAnimation() {
   arrowTl?.kill()
   arrowTl = gsap.timeline({ repeat: -1 })
   arrowTl
-    .to(arrow, { y: 8, opacity: 1, duration: 0.8, ease: 'sine.inOut' })
-    .to(arrow, { y: 0, opacity: 0.6, duration: 0.8, ease: 'sine.inOut' })
+    .to(arrow, { y: 10, opacity: 1, duration: 0.8, ease: 'sine.inOut' })
+    .to(arrow, { y: 0, opacity: 0.85, duration: 0.8, ease: 'sine.inOut' })
 }
 
 function setupCoverObserver() {
@@ -457,7 +457,9 @@ defineExpose({
                       d="M6 9l6 6 6-6"
                       fill="none"
                       stroke="currentColor"
-                      stroke-width="2"
+                      stroke-width="2.75"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
                     />
                   </svg>
                 </button>
@@ -489,7 +491,7 @@ defineExpose({
             <GoldDivider />
 
             <!-- 4. Nome -->
-            <section class="invite-section" data-scroll-reveal>
+            <section class="invite-section invite-section--name" data-scroll-reveal>
               <h2 class="invite-guest-name">
                 <span class="invite-guest-name__first">{{ invitation.guestFirstName }}</span>
                 <span class="invite-guest-name__last">{{ invitation.guestLastName }}</span>
@@ -861,14 +863,16 @@ defineExpose({
   background: none;
   border: none;
   cursor: pointer;
-  color: var(--vn-gold-soft);
-  filter: drop-shadow(0 1px 4px rgba(6, 18, 41, 0.3));
+  color: var(--vn-gold);
+  filter:
+    drop-shadow(0 0 6px var(--vn-gold-glow))
+    drop-shadow(0 2px 8px rgba(6, 18, 41, 0.55));
   padding: 0.5rem;
 }
 
 .cover-hero__arrow {
-  width: clamp(24px, 6vw, 32px);
-  height: clamp(24px, 6vw, 32px);
+  width: clamp(36px, 9vw, 48px);
+  height: clamp(36px, 9vw, 48px);
 }
 
 /* Sections */
@@ -943,6 +947,9 @@ defineExpose({
   font-weight: 400;
   line-height: 0.85;
   color: var(--vn-gold);
+  text-shadow:
+    0 1px 1px rgba(6, 18, 41, 0.14),
+    0 1px 6px rgba(212, 168, 67, 0.18);
 }
 
 .invite-guest-name__first {
