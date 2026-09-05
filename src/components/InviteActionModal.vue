@@ -349,24 +349,29 @@ onUnmounted(() => {
           <section v-if="step === 'dress-code'" class="dress-code" aria-labelledby="dress-code-title">
             <h2 id="dress-code-title" class="dress-code__title">{{ dressCode.title }}</h2>
 
+            <p class="dress-code__description">{{ dressCode.description }}</p>
+
             <div
               ref="dressRingRef"
               class="dress-code__palette"
               role="img"
-              aria-label="Cores sugeridas: azul noite, azul Van Gogh, dourado, neutro claro e azul escuro"
+              aria-label="Cores não recomendadas: azul noite, azul royal, dourado, prata e azul escuro"
             >
               <ul class="dress-code__swatches">
                 <li
                   v-for="color in dressCode.colors"
                   :key="color.hex"
                   class="dress-code__swatch"
-                  :style="{ '--swatch-color': color.hex }"
-                  :title="color.label"
-                />
+                >
+                  <span
+                    class="dress-code__swatch-dot"
+                    :style="{ '--swatch-color': color.hex }"
+                    :title="color.label"
+                  />
+                  <span class="dress-code__swatch-label">{{ color.label }}</span>
+                </li>
               </ul>
             </div>
-
-            <p class="dress-code__description">{{ dressCode.description }}</p>
 
             <button
               type="button"
@@ -496,41 +501,60 @@ onUnmounted(() => {
   margin-bottom: 1rem;
 }
 
+.dress-code__description {
+  margin: 0 0 1rem;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.2rem;
+  color: var(--vn-ink-soft);
+  line-height: 1.5;
+}
+
 .dress-code__palette {
   margin-inline: auto;
 }
 
 .dress-code__swatches {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  gap: 0.65rem;
+  gap: 0.45rem;
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
 .dress-code__swatch {
-  width: clamp(40px, 12vw, 56px);
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  opacity: 0;
+  visibility: hidden;
+}
+
+.dress-code__swatch-dot {
+  width: clamp(36px, 10vw, 48px);
   aspect-ratio: 1;
   border-radius: 50%;
   background: var(--swatch-color);
   box-shadow: 0 2px 8px rgba(27, 45, 79, 0.12);
-  opacity: 0;
-  visibility: hidden;
   transition: box-shadow 0.2s ease;
 }
 
-.dress-code__swatch:hover {
+.dress-code__swatch:hover .dress-code__swatch-dot {
   box-shadow: 0 0 10px var(--vn-gold-glow);
 }
 
-.dress-code__description {
-  margin-top: 1rem;
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 1.2rem;
+.dress-code__swatch-label {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.65rem;
+  font-weight: 500;
+  line-height: 1.25;
+  letter-spacing: 0.02em;
   color: var(--vn-ink-soft);
-  line-height: 1.5;
+  text-align: center;
 }
 
 @media (max-width: 768px) {

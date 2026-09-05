@@ -2,12 +2,12 @@ import { initializeApp } from 'firebase/app'
 import { getFirestore } from 'firebase/firestore'
 
 const firebaseConfig = {
-  apiKey: 'AIzaSyAg4dK3abXl9iBxozmnGEHwG79pxrsApXk',
-  authDomain: 'convite-kamilly.firebaseapp.com',
-  projectId: 'convite-kamilly',
-  storageBucket: 'convite-kamilly.firebasestorage.app',
-  messagingSenderId: '141663871296',
-  appId: '1:141663871296:web:a613019fe5316759189aa5',
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
 }
 
 const app = initializeApp(firebaseConfig)

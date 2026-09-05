@@ -1,114 +1,104 @@
 <script setup>
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, nextTick, reactive, ref } from 'vue'
 import { invitation, saveRsvp } from '../data/invite.js'
 
-const MAX_CHILDREN = 10
+const MAX_GUESTS = 20
 
 const emit = defineEmits(['success'])
 
 const isSubmitting = ref(false)
 const isSuccess = ref(false)
 const submitError = ref('')
+const draftName = ref('')
+const draftError = ref('')
+const listError = ref('')
+const pendingGuest = ref(null)
+const nameInputRef = ref(null)
 
-const form = reactive({
-  name: '',
-  guestCount: '',
-  hasChild: null,
-  childNames: [''],
-})
+const guests = reactive([])
 
-const errors = reactive({
-  name: '',
-  guestCount: '',
-  hasChild: '',
-  childNames: [''],
-})
+const canAddMore = computed(() => guests.length < MAX_GUESTS)
+const isAskingChild = computed(() => pendingGuest.value !== null)
 
-const showChildFields = computed(() => form.hasChild === true)
-const canAddChild = computed(() => form.childNames.length < MAX_CHILDREN)
-
-watch(
-  () => form.hasChild,
-  (value) => {
-    if (value === true) {
-      if (form.childNames.length === 0) {
-        form.childNames = ['']
-        errors.childNames = ['']
-      }
-    } else {
-      form.childNames = ['']
-      errors.childNames = ['']
-    }
-  },
-)
-
-function clearErrors() {
-  errors.name = ''
-  errors.guestCount = ''
-  errors.hasChild = ''
-  errors.childNames = form.childNames.map(() => '')
+function clearDraftErrors() {
+  draftError.value = ''
+  listError.value = ''
 }
 
-function addChildField() {
-  if (!canAddChild.value) return
-  form.childNames.push('')
-  errors.childNames.push('')
+async function focusNameInput() {
+  await nextTick()
+  nameInputRef.value?.focus()
 }
 
-function removeChildField(index) {
-  if (form.childNames.length <= 1) return
-  form.childNames.splice(index, 1)
-  errors.childNames.splice(index, 1)
+function startAddGuest() {
+  if (!canAddMore.value || isAskingChild.value) return
+
+  clearDraftErrors()
+  const name = draftName.value.trim()
+
+  if (!name || name.length < 2) {
+    draftError.value = 'Informe o nome completo.'
+    return
+  }
+
+  pendingGuest.value = { name }
 }
 
-function validate() {
-  clearErrors()
-  let valid = true
+function confirmIsChild(isChild) {
+  if (!pendingGuest.value) return
 
-  const trimmedName = form.name.trim()
-  if (!trimmedName || trimmedName.length < 2) {
-    errors.name = 'Informe seu nome completo.'
-    valid = false
-  }
+  guests.push({
+    name: pendingGuest.value.name,
+    isChild,
+  })
 
-  const guestCount = Number(form.guestCount)
-  if (!Number.isInteger(guestCount) || guestCount < 1) {
-    errors.guestCount = 'Informe quantas pessoas virão.'
-    valid = false
-  }
+  pendingGuest.value = null
+  draftName.value = ''
+  clearDraftErrors()
+  focusNameInput()
+}
 
-  if (form.hasChild === null) {
-    errors.hasChild = 'Selecione se haverá criança.'
-    valid = false
-  }
+function cancelPending() {
+  pendingGuest.value = null
+  clearDraftErrors()
+  focusNameInput()
+}
 
-  if (form.hasChild === true) {
-    form.childNames.forEach((name, index) => {
-      if (!name.trim()) {
-        errors.childNames[index] = 'Informe o nome da criança.'
-        valid = false
-      }
-    })
-  }
-
-  return valid
+function removeGuest(index) {
+  guests.splice(index, 1)
+  listError.value = ''
 }
 
 async function handleSubmit() {
   if (isSubmitting.value || isSuccess.value) return
-  if (!validate()) return
+
+  clearDraftErrors()
+
+  if (isAskingChild.value) {
+    draftError.value = 'Responda se a pessoa é criança antes de confirmar.'
+    return
+  }
+
+  if (guests.length === 0) {
+    listError.value = 'Adicione pelo menos uma pessoa.'
+    return
+  }
 
   isSubmitting.value = true
   submitError.value = ''
 
-  const childNames =
-    form.hasChild === true ? form.childNames.map((name) => name.trim()).filter(Boolean) : []
+  const childNames = guests.filter((guest) => guest.isChild).map((guest) => guest.name)
+  const primaryGuest = guests.find((guest) => !guest.isChild) ?? guests[0]
 
   const payload = {
-    name: form.name.trim(),
-    guestCount: Number(form.guestCount),
-    hasChild: form.hasChild === true,
+    name: primaryGuest.name,
+    guestCount: guests.length,
+    hasChild: childNames.length > 0,
     childNames,
+    guests: guests.map((guest) => ({
+      name: guest.name,
+      isChild: guest.isChild,
+    })),
   }
 
   try {
@@ -132,96 +122,76 @@ async function handleSubmit() {
     </div>
 
     <form v-else class="rsvp-form__fields" @submit.prevent="handleSubmit">
-      <div class="rsvp-form__field">
-        <label for="rsvp-name">Nome completo</label>
-        <input
-          id="rsvp-name"
-          v-model="form.name"
-          type="text"
-          autocomplete="name"
-          placeholder="Digite seu nome completo"
-          :aria-invalid="!!errors.name"
-        />
-        <span v-if="errors.name" class="rsvp-form__error" role="alert">{{ errors.name }}</span>
-      </div>
+      <ul v-if="guests.length" class="rsvp-form__guest-list" aria-label="Pessoas adicionadas">
+        <li v-for="(guest, index) in guests" :key="`${guest.name}-${index}`" class="rsvp-form__guest">
+          <div class="rsvp-form__guest-info">
+            <span class="rsvp-form__guest-name">{{ guest.name }}</span>
+            <span class="rsvp-form__guest-tag">{{ guest.isChild ? 'Criança' : 'Adulto' }}</span>
+          </div>
+          <button
+            type="button"
+            class="rsvp-form__remove-guest"
+            :aria-label="`Remover ${guest.name}`"
+            @click="removeGuest(index)"
+          >
+            &times;
+          </button>
+        </li>
+      </ul>
 
-      <div class="rsvp-form__field">
-        <label for="rsvp-count">Quantas pessoas?</label>
-        <input
-          id="rsvp-count"
-          v-model="form.guestCount"
-          type="number"
-          min="1"
-          max="20"
-          inputmode="numeric"
-          placeholder="Ex.: 3"
-          :aria-invalid="!!errors.guestCount"
-        />
-        <span v-if="errors.guestCount" class="rsvp-form__error" role="alert">{{
-          errors.guestCount
-        }}</span>
-      </div>
-
-      <fieldset class="rsvp-form__field rsvp-form__field--choice">
-        <legend>Vai trazer criança? (10 anos)</legend>
-        <div class="rsvp-form__radios" role="group" aria-label="Vai trazer criança?">
-          <label class="rsvp-form__choice">
-            <input v-model="form.hasChild" type="radio" :value="true" name="hasChild" />
-            <span>Sim</span>
-          </label>
-          <label class="rsvp-form__choice">
-            <input v-model="form.hasChild" type="radio" :value="false" name="hasChild" />
-            <span>Não</span>
-          </label>
-        </div>
-        <span v-if="errors.hasChild" class="rsvp-form__error" role="alert">{{
-          errors.hasChild
-        }}</span>
-      </fieldset>
-
-      <div v-if="showChildFields" class="rsvp-form__children">
-        <div
-          v-for="(_, index) in form.childNames"
-          :key="`child-${index}`"
-          class="rsvp-form__field rsvp-form__child-row"
-        >
-          <label :for="`rsvp-child-${index}`">
-            {{ form.childNames.length > 1 ? `Nome da ${index + 1}ª criança` : 'Nome da criança' }}
-          </label>
-          <div class="rsvp-form__child-input">
-            <input
-              :id="`rsvp-child-${index}`"
-              v-model="form.childNames[index]"
-              type="text"
-              placeholder="Digite o nome da criança"
-              :aria-invalid="!!errors.childNames[index]"
-            />
-            <button
-              v-if="form.childNames.length > 1"
-              type="button"
-              class="rsvp-form__remove-child"
-              :aria-label="`Remover ${index + 1}ª criança`"
-              @click="removeChildField(index)"
-            >
-              &times;
+      <div v-if="isAskingChild" class="rsvp-form__pending">
+        <p class="rsvp-form__pending-name">{{ pendingGuest.name }}</p>
+        <fieldset class="rsvp-form__field rsvp-form__field--choice">
+          <legend>É criança? (até 10 anos)</legend>
+          <div class="rsvp-form__radios" role="group" aria-label="É criança?">
+            <button type="button" class="rsvp-form__choice-btn" @click="confirmIsChild(true)">
+              Sim
+            </button>
+            <button type="button" class="rsvp-form__choice-btn" @click="confirmIsChild(false)">
+              Não
             </button>
           </div>
-          <span v-if="errors.childNames[index]" class="rsvp-form__error" role="alert">{{
-            errors.childNames[index]
-          }}</span>
-        </div>
-
-        <button
-          v-if="canAddChild"
-          type="button"
-          class="rsvp-form__add-child"
-          @click="addChildField"
-        >
-          + Adicionar
+        </fieldset>
+        <button type="button" class="rsvp-form__cancel-pending" @click="cancelPending">
+          Cancelar
         </button>
       </div>
 
-      <button type="submit" class="rsvp-form__submit" :disabled="isSubmitting">
+      <div v-else class="rsvp-form__add-row">
+        <div class="rsvp-form__field">
+          <label for="rsvp-name">Nome</label>
+          <div class="rsvp-form__name-row">
+            <input
+              id="rsvp-name"
+              ref="nameInputRef"
+              v-model="draftName"
+              type="text"
+              autocomplete="name"
+              placeholder="Digite o nome completo"
+              :disabled="!canAddMore"
+              :aria-invalid="!!draftError"
+              @keydown.enter.prevent="startAddGuest"
+            />
+            <button
+              type="button"
+              class="rsvp-form__add"
+              :disabled="!canAddMore"
+              @click="startAddGuest"
+            >
+              Adicionar
+            </button>
+          </div>
+          <span v-if="draftError" class="rsvp-form__error" role="alert">{{ draftError }}</span>
+        </div>
+      </div>
+
+      <span v-if="listError" class="rsvp-form__error" role="alert">{{ listError }}</span>
+
+      <button
+        type="submit"
+        class="rsvp-form__submit"
+        :disabled="isSubmitting || guests.length === 0 || isAskingChild"
+      >
         {{ isSubmitting ? 'Enviando...' : 'Confirmar presença' }}
       </button>
       <span v-if="submitError" class="rsvp-form__error rsvp-form__error--submit" role="alert">{{
@@ -263,8 +233,7 @@ async function handleSubmit() {
   margin-bottom: 0.75rem;
 }
 
-.rsvp-form__field input[type='text'],
-.rsvp-form__field input[type='number'] {
+.rsvp-form__field input[type='text'] {
   width: 100%;
   min-height: 44px;
   padding: 0.65rem 0.85rem;
@@ -286,66 +255,96 @@ async function handleSubmit() {
   outline-offset: 2px;
 }
 
-.rsvp-form__radios {
+.rsvp-form__field input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.rsvp-form__name-row {
   display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 2rem;
-  border: none;
+  align-items: stretch;
+  gap: 0.5rem;
 }
 
-.rsvp-form__field--choice .rsvp-form__choice {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.45rem;
-  margin: 0;
-  margin-bottom: 0;
-  padding: 0.35rem 0.25rem;
-  border: none;
-  background: none;
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 1.2rem;
-  font-weight: 500;
-  line-height: 1;
-  text-transform: none;
-  letter-spacing: normal;
-  color: var(--vn-ink);
-  cursor: pointer;
-}
-
-.rsvp-form__choice input[type='radio'] {
-  width: 1.05rem;
-  height: 1.05rem;
-  margin: 0;
-  flex-shrink: 0;
-  accent-color: var(--vn-gold);
-  cursor: pointer;
-  vertical-align: middle;
-}
-
-.rsvp-form__choice span {
-  line-height: 1;
-  display: inline-block;
-}
-
-.rsvp-form__children {
-  display: grid;
-  gap: 0.85rem;
-}
-
-.rsvp-form__child-input {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-}
-
-.rsvp-form__child-input input {
+.rsvp-form__name-row input {
   flex: 1;
   min-width: 0;
 }
 
-.rsvp-form__remove-child {
+.rsvp-form__add {
+  flex-shrink: 0;
+  min-height: 44px;
+  padding: 0.65rem 0.9rem;
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--vn-blue-mid);
+  border: 1px solid var(--vn-gold-soft);
+  border-radius: 6px;
+  background: transparent;
+  white-space: nowrap;
+}
+
+.rsvp-form__add:hover:not(:disabled) {
+  color: var(--vn-gold);
+  border-color: var(--vn-gold);
+}
+
+.rsvp-form__add:focus-visible {
+  outline: 2px solid var(--vn-gold);
+  outline-offset: 2px;
+}
+
+.rsvp-form__add:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.rsvp-form__guest-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.rsvp-form__guest {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.65rem 0.75rem;
+  background: var(--vn-paper);
+  border: 1px solid var(--vn-paper-shadow);
+  border-radius: 6px;
+}
+
+.rsvp-form__guest-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.rsvp-form__guest-name {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.15rem;
+  color: var(--vn-ink);
+  overflow-wrap: anywhere;
+}
+
+.rsvp-form__guest-tag {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--vn-ink-soft);
+}
+
+.rsvp-form__remove-guest {
   flex-shrink: 0;
   width: 40px;
   height: 40px;
@@ -357,32 +356,67 @@ async function handleSubmit() {
   border-radius: 6px;
 }
 
-.rsvp-form__remove-child:focus-visible {
+.rsvp-form__remove-guest:focus-visible {
   outline: 2px solid var(--vn-gold);
   outline-offset: 2px;
 }
 
-.rsvp-form__add-child {
+.rsvp-form__pending {
+  display: grid;
+  gap: 0.75rem;
+  text-align: center;
+}
+
+.rsvp-form__pending-name {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.35rem;
+  color: var(--vn-ink);
+}
+
+.rsvp-form__radios {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.75rem;
+  border: none;
+}
+
+.rsvp-form__choice-btn {
+  min-width: 88px;
+  min-height: 44px;
+  padding: 0.55rem 1.1rem;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.2rem;
+  font-weight: 500;
+  color: var(--vn-ink);
+  background: var(--vn-paper);
+  border: 1px solid var(--vn-paper-shadow);
+  border-radius: 999px;
+}
+
+.rsvp-form__choice-btn:hover {
+  border-color: var(--vn-gold);
+  color: var(--vn-gold);
+}
+
+.rsvp-form__choice-btn:focus-visible {
+  outline: 2px solid var(--vn-gold);
+  outline-offset: 2px;
+}
+
+.rsvp-form__cancel-pending {
   justify-self: center;
-  min-height: 40px;
-  padding: 0.4rem 1rem;
+  min-height: 36px;
+  padding: 0.25rem 0.75rem;
   font-family: 'Outfit', sans-serif;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   font-weight: 500;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--vn-blue-mid);
-  border: 1px solid var(--vn-gold-soft);
-  border-radius: 999px;
-  background: transparent;
+  color: var(--vn-ink-soft);
 }
 
-.rsvp-form__add-child:hover {
-  color: var(--vn-gold);
-  border-color: var(--vn-gold);
-}
-
-.rsvp-form__add-child:focus-visible {
+.rsvp-form__cancel-pending:focus-visible {
   outline: 2px solid var(--vn-gold);
   outline-offset: 2px;
 }
@@ -398,10 +432,6 @@ async function handleSubmit() {
 .rsvp-form__error--submit {
   text-align: center;
   margin-top: 0.75rem;
-}
-
-.rsvp-form__field--choice .rsvp-form__error {
-  text-align: center;
 }
 
 .rsvp-form__submit {

@@ -17,12 +17,13 @@ export const event = {
 
 export const dressCode = {
   title: 'Dress Code',
-  description: 'Tons que remetam à Noite Estrelada.',
+  description:
+    'Não recomendamos o uso dessas cores nem as que remetam à Noite Estrelada.',
   colors: [
     { hex: '#1a3a6c', label: 'Azul noite' },
-    { hex: '#2d5a9e', label: 'Azul Van Gogh' },
+    { hex: '#2d5a9e', label: 'Azul royal' },
     { hex: '#d4a843', label: 'Dourado' },
-    { hex: '#f5f0e8', label: 'Neutro claro' },
+    { hex: '#c0c5ce', label: 'Prata' },
     { hex: '#0a1c3d', label: 'Azul escuro' },
   ],
 }
@@ -57,11 +58,6 @@ export const gifts = {
       image: '/gifts/makeup.webp',
     },
     {
-      id: 'hair',
-      label: 'Produtos para cabelo',
-      image: '/gifts/hair.webp',
-    },
-    {
       id: 'accessories',
       label: 'Acessórios',
       image: '/gifts/accessories.webp',
@@ -72,7 +68,7 @@ export const gifts = {
       image: '/gifts/games.webp',
     },
   ],
-  closing: 'Qualquer carinho será bem-vindo.',
+  closing: 'Qualquer carinho será bem recebido.',
 }
 
 export const quote = {
@@ -119,11 +115,14 @@ function saveRsvpLocal(payload) {
  * Persists RSVP to Firestore (`rsvps`) and mirrors confirmation in localStorage.
  */
 export async function saveRsvp(payload) {
+  const guests = payload.guests ?? []
+
   const docRef = await addDoc(collection(db, RSVP_COLLECTION), {
     name: payload.name,
     guestCount: payload.guestCount,
     hasChild: payload.hasChild,
     childNames: payload.childNames ?? [],
+    guests,
     createdAt: serverTimestamp(),
   })
 
@@ -132,6 +131,7 @@ export async function saveRsvp(payload) {
     guestCount: payload.guestCount,
     hasChild: payload.hasChild,
     childNames: payload.childNames ?? [],
+    guests,
     id: docRef.id,
   })
 

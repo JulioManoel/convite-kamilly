@@ -6,15 +6,65 @@ service cloud.firestore {
     // ===============================================================
     //
     // Collection: rsvps/{rsvpId}
-    // - name: string (2–120 chars)
+    // - name: string (2–120 chars) — primary guest name
     // - guestCount: int (1–20)
     // - hasChild: bool
     // - childNames: list<string>
+    // - guests: list<{ name: string, isChild: bool }>
     // - createdAt: timestamp
     //
     // Public invite: anyone may CREATE an RSVP.
     // Read/update/delete are denied from the client (manage in Console).
     // ===============================================================
+
+    function isValidName(value) {
+      return value is string
+        && value.size() >= 2
+        && value.size() <= 120;
+    }
+
+    function isValidGuest(guest) {
+      return guest.keys().hasOnly(['name', 'isChild'])
+        && isValidName(guest.name)
+        && guest.isChild is bool;
+    }
+
+    // Unrolled checks (Firestore rules disallow recursive calls here).
+    function guestsValid(guests) {
+      return (guests.size() < 1 || isValidGuest(guests[0]))
+        && (guests.size() < 2 || isValidGuest(guests[1]))
+        && (guests.size() < 3 || isValidGuest(guests[2]))
+        && (guests.size() < 4 || isValidGuest(guests[3]))
+        && (guests.size() < 5 || isValidGuest(guests[4]))
+        && (guests.size() < 6 || isValidGuest(guests[5]))
+        && (guests.size() < 7 || isValidGuest(guests[6]))
+        && (guests.size() < 8 || isValidGuest(guests[7]))
+        && (guests.size() < 9 || isValidGuest(guests[8]))
+        && (guests.size() < 10 || isValidGuest(guests[9]))
+        && (guests.size() < 11 || isValidGuest(guests[10]))
+        && (guests.size() < 12 || isValidGuest(guests[11]))
+        && (guests.size() < 13 || isValidGuest(guests[12]))
+        && (guests.size() < 14 || isValidGuest(guests[13]))
+        && (guests.size() < 15 || isValidGuest(guests[14]))
+        && (guests.size() < 16 || isValidGuest(guests[15]))
+        && (guests.size() < 17 || isValidGuest(guests[16]))
+        && (guests.size() < 18 || isValidGuest(guests[17]))
+        && (guests.size() < 19 || isValidGuest(guests[18]))
+        && (guests.size() < 20 || isValidGuest(guests[19]));
+    }
+
+    function childNamesValid(names) {
+      return (names.size() < 1 || isValidName(names[0]))
+        && (names.size() < 2 || isValidName(names[1]))
+        && (names.size() < 3 || isValidName(names[2]))
+        && (names.size() < 4 || isValidName(names[3]))
+        && (names.size() < 5 || isValidName(names[4]))
+        && (names.size() < 6 || isValidName(names[5]))
+        && (names.size() < 7 || isValidName(names[6]))
+        && (names.size() < 8 || isValidName(names[7]))
+        && (names.size() < 9 || isValidName(names[8]))
+        && (names.size() < 10 || isValidName(names[9]));
+    }
 
     function isValidRsvp() {
       let data = request.resource.data;
@@ -23,21 +73,24 @@ service cloud.firestore {
           'guestCount',
           'hasChild',
           'childNames',
+          'guests',
           'createdAt',
         ])
-        && data.name is string
-        && data.name.size() >= 2
-        && data.name.size() <= 120
+        && isValidName(data.name)
         && data.guestCount is int
         && data.guestCount >= 1
         && data.guestCount <= 20
         && data.hasChild is bool
         && data.childNames is list
         && data.childNames.size() <= 10
+        && childNamesValid(data.childNames)
         && (
           (data.hasChild == false && data.childNames.size() == 0)
           || (data.hasChild == true && data.childNames.size() >= 1)
         )
+        && data.guests is list
+        && data.guests.size() == data.guestCount
+        && guestsValid(data.guests)
         && data.createdAt is timestamp;
     }
 

@@ -592,7 +592,7 @@ onUnmounted(() => {
 
 .intro {
   position: absolute;
-  top: clamp(1.5rem, 5vh, 3rem);
+  top: clamp(2.5rem, 7vh, 4rem);
   left: 50%;
   text-align: center;
   z-index: 2;
@@ -623,10 +623,11 @@ onUnmounted(() => {
 
 .intro-hint {
   margin-top: 0.65rem;
-  font-size: 1rem;
+  font-size: clamp(0.85rem, 3.6vw, 1rem);
   font-weight: 300;
   letter-spacing: 0.08em;
   color: var(--gold-soft);
+  white-space: nowrap;
 }
 
 .stage {
@@ -637,6 +638,7 @@ onUnmounted(() => {
   place-items: center;
   perspective: 1200px;
   z-index: 1;
+  margin-top: clamp(5.5rem, 14vh, 8rem);
 }
 
 .envelope-stage {
@@ -862,11 +864,11 @@ onUnmounted(() => {
     padding:
       1.5rem
       1.25rem
-      max(12.5rem, calc(env(safe-area-inset-bottom, 0px) + 10.25rem));
+      max(7rem, calc(env(safe-area-inset-bottom, 0px) + 5.5rem));
   }
 
   .intro {
-    top: clamp(8.5rem, 28vh, 12rem);
+    top: clamp(3.75rem, 10vh, 6rem);
   }
 
   .stage {
@@ -876,6 +878,7 @@ onUnmounted(() => {
     align-items: flex-end;
     justify-content: center;
     flex: 0 0 auto;
+    margin-top: 0;
   }
 
   .envelope-stage {
