@@ -886,6 +886,14 @@ defineExpose({
   margin-bottom: 1rem;
 }
 
+.invite-section--gifts {
+  text-align: center;
+}
+
+.invite-section--gifts .invite-section__label {
+  text-align: center;
+}
+
 .invite-section--quote {
   position: relative;
   z-index: 1;
@@ -1010,7 +1018,8 @@ defineExpose({
   font-weight: 400;
   line-height: 1.65;
   color: var(--vn-ink);
-  margin: 0 0 1.1rem;
+  margin: 0 auto 1.1rem;
+  text-align: center;
 }
 
 .invite-gifts__block {
