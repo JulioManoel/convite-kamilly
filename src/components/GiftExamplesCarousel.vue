@@ -43,8 +43,6 @@ defineProps({
   display: flex;
   gap: var(--gift-gap);
   overflow-x: auto;
-  scroll-snap-type: x mandatory;
-  scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
   width: 100%;
@@ -59,7 +57,6 @@ defineProps({
 .gift-carousel__slide {
   flex: 0 0 calc((100% - (2 * var(--gift-gap))) / 2.5);
   width: calc((100% - (2 * var(--gift-gap))) / 2.5);
-  scroll-snap-align: start;
 }
 
 .gift-carousel__card {
