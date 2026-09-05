@@ -13,7 +13,7 @@ export const event = {
 
 export const dressCode = {
   title: 'Dress Code',
-  description: 'Esporte fino em tons que remetam à Noite Estrelada.',
+  description: 'Tons que remetam à Noite Estrelada.',
   colors: [
     { hex: '#1a3a6c', label: 'Azul noite' },
     { hex: '#2d5a9e', label: 'Azul Van Gogh' },

@@ -1,9 +1,8 @@
 <script setup>
-import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import gsap from 'gsap'
 import sealImage from '../assets/k.webp'
 import { dressCode } from '../data/invite.js'
-import GoldDivider from './GoldDivider.vue'
 import RsvpForm from './RsvpForm.vue'
 
 const props = defineProps({
@@ -14,8 +13,14 @@ const emit = defineEmits(['close', 'rsvp-success'])
 
 const overlayRef = ref(null)
 const modalRef = ref(null)
+const stepPanelRef = ref(null)
 const dressRingRef = ref(null)
 const closeTimer = ref(null)
+const step = ref('dress-code')
+
+const titleId = computed(() =>
+  step.value === 'dress-code' ? 'dress-code-title' : 'invite-modal-title',
+)
 
 let focusTrapHandler
 
@@ -82,8 +87,41 @@ function animateDressCode() {
   )
 }
 
+async function animateStepChange(nextStep) {
+  const panel = stepPanelRef.value
+
+  if (!panel || prefersReducedMotion()) {
+    step.value = nextStep
+    await nextTick()
+    teardownFocusTrap()
+    setupFocusTrap()
+    if (nextStep === 'dress-code') animateDressCode()
+    return
+  }
+
+  await gsap.to(panel, { autoAlpha: 0, y: -8, duration: 0.2, ease: 'power2.in' })
+  step.value = nextStep
+  await nextTick()
+  gsap.set(panel, { y: 8 })
+  await gsap.to(panel, { autoAlpha: 1, y: 0, duration: 0.25, ease: 'power2.out' })
+  teardownFocusTrap()
+  setupFocusTrap()
+  if (nextStep === 'dress-code') animateDressCode()
+}
+
+function goToRsvp() {
+  animateStepChange('rsvp')
+}
+
+function goToDressCode() {
+  animateStepChange('dress-code')
+}
+
 function handleClose() {
-  animateClose(() => emit('close'))
+  animateClose(() => {
+    step.value = 'dress-code'
+    emit('close')
+  })
 }
 
 function handleKeydown(event) {
@@ -132,11 +170,13 @@ watch(
   () => props.open,
   async (isOpen) => {
     if (isOpen) {
+      step.value = 'dress-code'
       await nextTick()
       animateOpen()
       setupFocusTrap()
     } else {
       teardownFocusTrap()
+      step.value = 'dress-code'
       if (closeTimer.value) {
         clearTimeout(closeTimer.value)
         closeTimer.value = null
@@ -170,7 +210,7 @@ onUnmounted(() => {
         class="invite-modal"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="invite-modal-title"
+        :aria-labelledby="titleId"
       >
         <button type="button" class="invite-modal__close" aria-label="Fechar" @click="handleClose">
           &times;
@@ -187,34 +227,42 @@ onUnmounted(() => {
           />
         </header>
 
-        <section class="dress-code" aria-labelledby="dress-code-title">
-          <h3 id="dress-code-title" class="dress-code__title">{{ dressCode.title }}</h3>
+        <div ref="stepPanelRef" class="invite-modal__step">
+          <section v-if="step === 'dress-code'" class="dress-code" aria-labelledby="dress-code-title">
+            <h2 id="dress-code-title" class="dress-code__title">{{ dressCode.title }}</h2>
 
-          <div
-            ref="dressRingRef"
-            class="dress-code__ring"
-            role="img"
-            aria-label="Cores sugeridas: azul noite, azul Van Gogh, dourado, neutro claro e azul escuro"
-            :style="{ '--swatch-count': dressCode.colors.length }"
-          >
-            <ul class="dress-code__swatches">
-              <li
-                v-for="(color, index) in dressCode.colors"
-                :key="color.hex"
-                class="dress-code__swatch"
-                :style="{ '--swatch-color': color.hex, '--swatch-index': index }"
-                :title="color.label"
-              />
-            </ul>
-          </div>
+            <div
+              ref="dressRingRef"
+              class="dress-code__palette"
+              role="img"
+              aria-label="Cores sugeridas: azul noite, azul Van Gogh, dourado, neutro claro e azul escuro"
+            >
+              <ul class="dress-code__swatches">
+                <li
+                  v-for="color in dressCode.colors"
+                  :key="color.hex"
+                  class="dress-code__swatch"
+                  :style="{ '--swatch-color': color.hex }"
+                  :title="color.label"
+                />
+              </ul>
+            </div>
 
-          <p class="dress-code__description">{{ dressCode.description }}</p>
-        </section>
+            <p class="dress-code__description">{{ dressCode.description }}</p>
 
-        <GoldDivider />
+            <button type="button" class="invite-modal__next" @click="goToRsvp">
+              Confirmar presença
+            </button>
+          </section>
 
-        <h2 id="invite-modal-title" class="invite-modal__title">Confirmar presença</h2>
-        <RsvpForm @success="onRsvpSuccess" />
+          <section v-else class="invite-modal__rsvp" aria-labelledby="invite-modal-title">
+            <button type="button" class="invite-modal__back" @click="goToDressCode">
+              ← Dress Code
+            </button>
+            <h2 id="invite-modal-title" class="invite-modal__title">Confirmar presença</h2>
+            <RsvpForm @success="onRsvpSuccess" />
+          </section>
+        </div>
       </div>
     </div>
   </Teleport>
@@ -269,6 +317,10 @@ onUnmounted(() => {
   filter: drop-shadow(0 2px 8px var(--vn-gold-glow));
 }
 
+.invite-modal__step {
+  will-change: transform, opacity;
+}
+
 .invite-modal__title {
   font-family: 'Outfit', sans-serif;
   font-size: 0.85rem;
@@ -278,6 +330,44 @@ onUnmounted(() => {
   color: var(--vn-blue-mid);
   text-align: center;
   margin-bottom: 1rem;
+}
+
+.invite-modal__next {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  margin-top: 1.5rem;
+  padding: 0.75rem 1.25rem;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 500;
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+  color: var(--vn-sky-deep);
+  background: var(--vn-gold);
+  border-radius: 999px;
+  box-shadow: 0 2px 12px rgba(6, 18, 41, 0.15);
+}
+
+.invite-modal__next:focus-visible {
+  outline: 2px solid var(--vn-gold);
+  outline-offset: 2px;
+}
+
+.invite-modal__back {
+  display: block;
+  margin: 0 auto 1rem;
+  padding: 0.35rem 0.5rem;
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--vn-ink-soft);
+}
+
+.invite-modal__back:focus-visible {
+  outline: 2px solid var(--vn-gold);
+  outline-offset: 2px;
 }
 
 .dress-code {
@@ -294,46 +384,30 @@ onUnmounted(() => {
   margin-bottom: 1rem;
 }
 
-.dress-code__ring {
-  position: relative;
-  width: clamp(120px, 38vw, 180px);
-  aspect-ratio: 1;
+.dress-code__palette {
   margin-inline: auto;
-  border: 2px solid var(--vn-gold);
-  border-radius: 50%;
-  background: rgba(255, 250, 244, 0.5);
 }
 
 .dress-code__swatches {
-  position: absolute;
-  inset: 18%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
 .dress-code__swatch {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: clamp(20px, 6vw, 32px);
+  width: clamp(40px, 12vw, 56px);
   aspect-ratio: 1;
   border-radius: 50%;
   background: var(--swatch-color);
-  border: 1px solid rgba(27, 45, 79, 0.15);
-  transform:
-    rotate(calc(var(--swatch-index) * (360deg / var(--swatch-count, 5))))
-    translateY(-72%)
-    rotate(calc(var(--swatch-index) * (-360deg / var(--swatch-count, 5))));
   transition: transform 0.2s, box-shadow 0.2s;
 }
 
 .dress-code__swatch:hover {
-  transform:
-    rotate(calc(var(--swatch-index) * (360deg / var(--swatch-count, 5))))
-    translateY(-72%)
-    rotate(calc(var(--swatch-index) * (-360deg / var(--swatch-count, 5))))
-    scale(1.12);
+  transform: scale(1.08);
   box-shadow: 0 0 8px var(--vn-gold-glow);
 }
 

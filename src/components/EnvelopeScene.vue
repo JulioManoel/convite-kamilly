@@ -440,6 +440,7 @@ function playOpenSequence() {
 function openEnvelope() {
   if (phase.value !== 'idle') return
   phase.value = 'open'
+  letterComponentRef.value?.startAmbientMusic?.()
 
   if (prefersReducedMotion()) {
     snapOpenInstant()

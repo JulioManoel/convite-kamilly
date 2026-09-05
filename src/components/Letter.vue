@@ -38,6 +38,11 @@ const quoteSectionRef = ref(null)
 
 const isModalOpen = ref(false)
 const rsvpConfirmed = ref(false)
+const ambientMusicRef = ref(null)
+
+function startAmbientMusic() {
+  ambientMusicRef.value?.playOnOpen?.()
+}
 
 const sparkles = ref(
   Array.from({ length: SPARKLE_COUNT }, (_, index) => {
@@ -377,6 +382,7 @@ defineExpose({
   playSparkles,
   fadeBackdrop,
   presentInvite,
+  startAmbientMusic,
 })
 </script>
 
@@ -590,7 +596,7 @@ defineExpose({
       @rsvp-success="onRsvpSuccess"
     />
 
-    <AmbientMusic v-if="isCentered" />
+    <AmbientMusic ref="ambientMusicRef" :visible="isCentered" />
   </div>
 </template>
 
@@ -660,7 +666,7 @@ defineExpose({
   visibility: visible;
   pointer-events: auto;
   display: flex;
-  align-items: stretch;
+  align-items: center;
   justify-content: center;
   padding: 0.5rem;
   box-sizing: border-box;
@@ -689,8 +695,8 @@ defineExpose({
   bottom: auto;
   width: min(94vw, 460px);
   max-width: 100%;
-  height: 100%;
-  max-height: 100%;
+  height: auto;
+  max-height: min(88svh, 860px);
   min-height: 0;
   transform: none;
   opacity: 1;
@@ -703,10 +709,12 @@ defineExpose({
 }
 
 .letter.open.centered .letter-sheet {
+  --sheet-height: min(88svh, 860px);
   width: 100%;
   max-width: 100%;
-  flex: 1;
-  min-height: 0;
+  height: var(--sheet-height);
+  max-height: var(--sheet-height);
+  flex: none;
 }
 
 .invite-sparkles {
@@ -1144,6 +1152,7 @@ defineExpose({
   .letter-mouth.open.centered.expanded {
     padding: 0;
     display: flex;
+    align-items: stretch;
     overflow: hidden;
     overscroll-behavior: none;
   }
@@ -1152,6 +1161,7 @@ defineExpose({
     width: 100%;
     max-width: 100%;
     height: 100%;
+    max-height: 100%;
     min-height: 0;
   }
 
@@ -1166,9 +1176,27 @@ defineExpose({
     max-width: 100%;
     height: var(--sheet-height);
     max-height: var(--sheet-height);
+    flex: 1;
+    min-height: 0;
     border-radius: 0;
     border: none;
     box-shadow: none;
+  }
+}
+
+@media (min-width: 769px) {
+  .letter-mouth.open.centered {
+    padding: clamp(1.25rem, 3vh, 2.5rem);
+  }
+
+  .letter.open.centered {
+    width: min(92vw, 480px);
+    max-height: min(86svh, 860px);
+  }
+
+  .letter.open.centered .letter-sheet {
+    --sheet-height: min(86svh, 860px);
+    --cover-height: var(--sheet-height);
   }
 }
 
