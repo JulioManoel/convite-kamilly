@@ -1,7 +1,7 @@
 <script setup>
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 import gsap from 'gsap'
-import { galleryPhotos } from '../data/gallery.js'
+import { galleryRows } from '../data/gallery.js'
 
 const MOBILE_QUERY = '(max-width: 768px)'
 
@@ -11,7 +11,7 @@ const lightboxPhoto = ref(null)
 const isMobile = ref(false)
 
 let revealObserver
-let floatTl
+let floatTweens = []
 
 function prefersReducedMotion() {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -21,19 +21,13 @@ function checkMobile() {
   isMobile.value = window.matchMedia(MOBILE_QUERY).matches
 }
 
-const photos = computed(() =>
-  galleryPhotos.map((photo) => {
-    const pos = isMobile.value && photo.mobile ? photo.mobile : photo
-    return {
-      ...photo,
-      style: {
-        top: pos.top,
-        left: pos.left,
-        transform: `rotate(${pos.rotate}deg) scale(${pos.scale})`,
-      },
-    }
-  }),
-)
+function photoStyle(photo) {
+  return {
+    '--photo-rotate': `${photo.rotate ?? 0}deg`,
+    '--photo-nudge-x': `${photo.nudgeX ?? 0}px`,
+    '--photo-nudge-y': `${photo.nudgeY ?? 0}px`,
+  }
+}
 
 function openLightbox(photo) {
   lightboxPhoto.value = photo
@@ -43,59 +37,71 @@ function closeLightbox() {
   lightboxPhoto.value = null
 }
 
+function onKeydown(event) {
+  if (event.key === 'Escape' && lightboxPhoto.value) {
+    closeLightbox()
+  }
+}
+
 function setupReveal() {
   const container = containerRef.value
   if (!container || prefersReducedMotion()) return
 
   const nodes = photoRefs.value.filter(Boolean)
-  gsap.set(nodes, { autoAlpha: 0, scale: 0.9 })
+  gsap.set(nodes, { autoAlpha: 0, y: 22, scale: 0.92 })
 
   revealObserver = new IntersectionObserver(
     ([entry]) => {
       if (entry.isIntersecting) {
         gsap.to(nodes, {
           autoAlpha: 1,
+          y: 0,
           scale: 1,
-          duration: 0.65,
-          stagger: 0.12,
+          duration: 0.7,
+          stagger: 0.09,
           ease: 'power3.out',
         })
         revealObserver?.disconnect()
       }
     },
-    { threshold: 0.15 },
+    { threshold: 0.1 },
   )
   revealObserver.observe(container)
 }
 
 function setupFloat() {
+  floatTweens.forEach((tween) => tween.kill())
+  floatTweens = []
+
   if (prefersReducedMotion() || isMobile.value) return
 
   const nodes = photoRefs.value.filter(Boolean)
-  floatTl = gsap.timeline({ repeat: -1 })
   nodes.forEach((node, index) => {
-    gsap.to(node, {
+    const tween = gsap.to(node, {
       y: '+=4',
       duration: 3 + index * 0.4,
       repeat: -1,
       yoyo: true,
       ease: 'sine.inOut',
-      delay: index * 0.3,
+      delay: index * 0.22,
     })
+    floatTweens.push(tween)
   })
 }
 
 onMounted(() => {
   checkMobile()
   window.addEventListener('resize', checkMobile)
+  window.addEventListener('keydown', onKeydown)
   setupReveal()
   setupFloat()
 })
 
 onUnmounted(() => {
   window.removeEventListener('resize', checkMobile)
+  window.removeEventListener('keydown', onKeydown)
   revealObserver?.disconnect()
-  floatTl?.kill()
+  floatTweens.forEach((tween) => tween.kill())
 })
 </script>
 
@@ -103,18 +109,41 @@ onUnmounted(() => {
   <section class="floating-gallery" data-scroll-reveal>
     <h3 class="floating-gallery__title">Galeria</h3>
     <div ref="containerRef" class="floating-gallery__container">
-      <button
-        v-for="(photo, index) in photos"
-        :key="photo.id"
-        ref="photoRefs"
-        type="button"
-        class="floating-gallery__photo"
-        :style="photo.style"
-        :aria-label="photo.alt"
-        @click="openLightbox(photo)"
+      <div
+        v-for="row in galleryRows"
+        :key="row.id"
+        class="floating-gallery__row"
+        :class="`floating-gallery__row--${row.photos.length}`"
       >
-        <div class="floating-gallery__placeholder" aria-hidden="true" />
-      </button>
+        <button
+          v-for="photo in row.photos"
+          :key="photo.id"
+          ref="photoRefs"
+          type="button"
+          class="floating-gallery__photo"
+          :style="photoStyle(photo)"
+          :aria-label="photo.caption ? `${photo.alt}. ${photo.caption}` : photo.alt"
+          @click="openLightbox(photo)"
+        >
+          <figure class="floating-gallery__polaroid">
+            <div class="floating-gallery__frame">
+              <img
+                v-if="photo.src"
+                class="floating-gallery__image"
+                :src="photo.src"
+                :alt="photo.alt"
+                loading="lazy"
+                decoding="async"
+                draggable="false"
+              />
+              <div v-else class="floating-gallery__placeholder" aria-hidden="true" />
+            </div>
+            <figcaption v-if="photo.caption" class="floating-gallery__caption">
+              {{ photo.caption }}
+            </figcaption>
+          </figure>
+        </button>
+      </div>
     </div>
 
     <Teleport to="body">
@@ -134,9 +163,21 @@ onUnmounted(() => {
         >
           &times;
         </button>
-        <div class="floating-gallery__lightbox-content">
-          <div class="floating-gallery__placeholder floating-gallery__placeholder--large" />
-        </div>
+        <figure class="floating-gallery__polaroid floating-gallery__polaroid--lightbox">
+          <div class="floating-gallery__frame">
+            <img
+              v-if="lightboxPhoto.src"
+              class="floating-gallery__image"
+              :src="lightboxPhoto.src"
+              :alt="lightboxPhoto.alt"
+              draggable="false"
+            />
+            <div v-else class="floating-gallery__placeholder" aria-hidden="true" />
+          </div>
+          <figcaption v-if="lightboxPhoto.caption" class="floating-gallery__caption">
+            {{ lightboxPhoto.caption }}
+          </figcaption>
+        </figure>
       </div>
     </Teleport>
   </section>
@@ -144,7 +185,7 @@ onUnmounted(() => {
 
 <style scoped>
 .floating-gallery {
-  padding-block: clamp(2rem, 6vw, 3rem);
+  padding-block: clamp(1.75rem, 5vw, 2.75rem);
 }
 
 .floating-gallery__title {
@@ -155,45 +196,143 @@ onUnmounted(() => {
   text-transform: uppercase;
   color: var(--vn-blue-mid);
   text-align: center;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.25rem;
 }
 
 .floating-gallery__container {
-  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(0.35rem, 2vw, 0.85rem);
   width: 100%;
-  min-height: 420px;
   overflow: visible;
+  padding-inline: 0.15rem;
+}
+
+.floating-gallery__row {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: center;
+  align-items: center;
+  gap: clamp(0.15rem, 2vw, 0.55rem);
+  position: relative;
+}
+
+/* Pull rows together so photos feel piled / thrown */
+.floating-gallery__row + .floating-gallery__row {
+  margin-top: clamp(-0.85rem, -2.5vw, -0.35rem);
 }
 
 .floating-gallery__photo {
-  position: absolute;
-  width: clamp(100px, 28vw, 140px);
-  aspect-ratio: 3 / 4;
+  flex: 0 1 auto;
+  width: clamp(100px, 30vw, 138px);
   padding: 0;
-  border: 2px solid var(--vn-gold-soft);
-  border-radius: 4px;
-  background: var(--vn-cream);
-  box-shadow: 0 8px 24px rgba(27, 45, 79, 0.15);
+  border: none;
+  background: transparent;
   cursor: pointer;
-  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  transform: translate(var(--photo-nudge-x, 0), var(--photo-nudge-y, 0))
+    rotate(var(--photo-rotate, 0deg));
+  transform-origin: center center;
+  transition: filter 0.25s ease, z-index 0s;
+  z-index: 1;
 }
 
-.floating-gallery__photo:hover {
-  transform: scale(1.04) !important;
+.floating-gallery__row--3 .floating-gallery__photo {
+  width: clamp(90px, 27vw, 122px);
+}
+
+.floating-gallery__row--3 .floating-gallery__photo:nth-child(1) {
   z-index: 2;
-  box-shadow: 0 12px 32px var(--vn-gold-glow);
+}
+
+.floating-gallery__row--3 .floating-gallery__photo:nth-child(2) {
+  z-index: 3;
+  margin-inline: clamp(-0.35rem, -1.5vw, -0.1rem);
+}
+
+.floating-gallery__row--3 .floating-gallery__photo:nth-child(3) {
+  z-index: 2;
+}
+
+.floating-gallery__row--2 .floating-gallery__photo:nth-child(1) {
+  z-index: 2;
+}
+
+.floating-gallery__row--2 .floating-gallery__photo:nth-child(2) {
+  z-index: 3;
+  margin-left: clamp(-0.5rem, -2vw, -0.15rem);
+}
+
+.floating-gallery__photo:hover,
+.floating-gallery__photo:focus-visible {
+  z-index: 5;
+  filter: brightness(1.03);
+}
+
+.floating-gallery__photo:hover .floating-gallery__polaroid,
+.floating-gallery__photo:focus-visible .floating-gallery__polaroid {
+  box-shadow:
+    0 14px 36px rgba(27, 45, 79, 0.24),
+    0 0 0 1px var(--vn-gold-glow);
+}
+
+.floating-gallery__photo:focus-visible {
+  outline: 2px solid var(--vn-gold);
+  outline-offset: 4px;
+}
+
+.floating-gallery__polaroid {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 0.45rem 0.45rem 0;
+  background: #fffef9;
+  border: 1px solid rgba(212, 168, 67, 0.35);
+  box-shadow: 0 8px 22px rgba(27, 45, 79, 0.16);
+  transition: box-shadow 0.25s ease;
+}
+
+.floating-gallery__polaroid--lightbox {
+  width: min(78vw, 300px);
+  padding: 0.7rem 0.7rem 0;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.45);
+}
+
+.floating-gallery__frame {
+  aspect-ratio: 3 / 4;
+  width: 100%;
+  overflow: hidden;
+  background: var(--vn-paper-shadow);
+}
+
+.floating-gallery__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  pointer-events: none;
 }
 
 .floating-gallery__placeholder {
   width: 100%;
   height: 100%;
   background: var(--vn-gradient-paper);
-  border-radius: 2px;
 }
 
-.floating-gallery__placeholder--large {
-  width: min(80vw, 320px);
-  aspect-ratio: 3 / 4;
+.floating-gallery__caption {
+  min-height: 2.1rem;
+  padding: 0.45rem 0.2rem 0.65rem;
+  font-family: 'Parisienne', cursive;
+  font-size: clamp(0.72rem, 2.2vw, 0.92rem);
+  line-height: 1.2;
+  color: var(--vn-ink);
+  text-align: center;
+  letter-spacing: 0.01em;
+}
+
+.floating-gallery__polaroid--lightbox .floating-gallery__caption {
+  min-height: 2.6rem;
+  padding: 0.65rem 0.35rem 0.9rem;
+  font-size: clamp(1.05rem, 3.5vw, 1.35rem);
 }
 
 .floating-gallery__lightbox {
@@ -217,17 +356,5 @@ onUnmounted(() => {
   color: var(--vn-gold-soft);
   display: grid;
   place-items: center;
-}
-
-.floating-gallery__lightbox-content {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-@media (min-width: 769px) {
-  .floating-gallery__container {
-    min-height: 580px;
-  }
 }
 </style>

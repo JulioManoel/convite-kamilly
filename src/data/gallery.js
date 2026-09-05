@@ -1,47 +1,86 @@
-export const galleryPhotos = [
+/**
+ * Gallery rows — put files in `public/gallery/` and set `src` like `/gallery/photo-1.webp`.
+ * Leave `src` empty to keep the cream placeholder.
+ * `caption` appears in the polaroid white footer (edit freely).
+ * Layout: 2 / 3 / 2 — scattered “thrown” look via rotate + nudge.
+ */
+export const galleryRows = [
   {
-    id: 'photo-1',
-    alt: 'Kamilly — momento especial',
-    top: '8%',
-    left: '6%',
-    rotate: -6,
-    scale: 0.92,
-    mobile: { top: '10%', left: '8%', rotate: -4, scale: 0.78 },
+    id: 'row-1',
+    photos: [
+      {
+        id: 'photo-1',
+        src: '',
+        alt: 'Kamilly — momento especial',
+        caption: 'Um novo capítulo',
+        rotate: -8,
+        nudgeX: -6,
+        nudgeY: 10,
+      },
+      {
+        id: 'photo-2',
+        src: '',
+        alt: 'Kamilly — sorriso',
+        caption: 'Sorrisos que iluminam',
+        rotate: 7,
+        nudgeX: 8,
+        nudgeY: -4,
+      },
+    ],
   },
   {
-    id: 'photo-2',
-    alt: 'Kamilly — sorriso',
-    top: '18%',
-    left: '52%',
-    rotate: 5,
-    scale: 0.88,
-    mobile: { top: '22%', left: '48%', rotate: 3, scale: 0.75 },
+    id: 'row-2',
+    photos: [
+      {
+        id: 'photo-3',
+        src: '',
+        alt: 'Kamilly — celebração',
+        caption: 'Noite estrelada',
+        rotate: 5,
+        nudgeX: -10,
+        nudgeY: 6,
+      },
+      {
+        id: 'photo-4',
+        src: '',
+        alt: 'Kamilly — memória',
+        caption: 'Memórias douradas',
+        rotate: -3,
+        nudgeX: 0,
+        nudgeY: -12,
+      },
+      {
+        id: 'photo-5',
+        src: '',
+        alt: 'Kamilly — alegria',
+        caption: '15 anos de luz',
+        rotate: 9,
+        nudgeX: 10,
+        nudgeY: 8,
+      },
+    ],
   },
   {
-    id: 'photo-3',
-    alt: 'Kamilly — celebração',
-    top: '42%',
-    left: '12%',
-    rotate: 3,
-    scale: 0.95,
-    mobile: { top: '48%', left: '10%', rotate: 2, scale: 0.8 },
-  },
-  {
-    id: 'photo-4',
-    alt: 'Kamilly — memória',
-    top: '38%',
-    left: '58%',
-    rotate: -4,
-    scale: 0.9,
-    mobile: { top: '44%', left: '55%', rotate: -3, scale: 0.76 },
-  },
-  {
-    id: 'photo-5',
-    alt: 'Kamilly — alegria',
-    top: '68%',
-    left: '28%',
-    rotate: 7,
-    scale: 0.85,
-    mobile: { top: '72%', left: '25%', rotate: 5, scale: 0.72 },
+    id: 'row-3',
+    photos: [
+      {
+        id: 'photo-6',
+        src: '',
+        alt: 'Kamilly — amizade',
+        caption: 'Com quem amo',
+        rotate: -6,
+        nudgeX: -4,
+        nudgeY: -6,
+      },
+      {
+        id: 'photo-7',
+        src: '',
+        alt: 'Kamilly — festa',
+        caption: 'Vem celebrar',
+        rotate: 4,
+        nudgeX: 12,
+        nudgeY: 10,
+      },
+    ],
   },
 ]
