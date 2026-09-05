@@ -33,22 +33,42 @@ export const location = {
 
 export const gifts = {
   title: 'Dicas para presentes',
+  intro: 'Se quiserem presentear, algumas referências.',
+  infoLabel: 'Tamanhos',
   sizes: [
     { label: 'Sapato', value: '36' },
     { label: 'Camiseta', value: 'P' },
-    { label: 'Calça', value: '38, 40' },
+    { label: 'Calça', value: '38–40' },
   ],
+  examplesLabel: 'Exemplos',
   suggestions: [
     {
-      label: 'Perfumes',
-      details: ['Mais floral', 'Floral amadeirado', 'Cheiros suaves'],
+      id: 'perfume',
+      label: 'Perfumes florais ou suaves',
+      image: '/gifts/perfume.webp',
     },
-    'Maquiagem',
-    'Produtos para cabelo',
-    'Ursos de pelúcia',
-    'Acessórios',
-    'Jogos',
+    {
+      id: 'makeup',
+      label: 'Maquiagem',
+      image: '/gifts/makeup.webp',
+    },
+    {
+      id: 'hair',
+      label: 'Produtos para cabelo',
+      image: '/gifts/hair.webp',
+    },
+    {
+      id: 'accessories',
+      label: 'Acessórios',
+      image: '/gifts/accessories.webp',
+    },
+    {
+      id: 'games',
+      label: 'Jogos',
+      image: '/gifts/games.webp',
+    },
   ],
+  closing: 'Qualquer carinho será bem-vindo.',
 }
 
 export const quote = {
@@ -62,6 +82,9 @@ export const invitation = {
   guestFirstName: 'Kamilly',
   guestLastName: 'Manoel',
   closingMessage: 'Conto com a sua presença.',
+  farewellTitle: 'Até a Noite Estrelada',
+  farewellMessage:
+    'Será uma alegria celebrar este momento com você. Nos vemos sob o céu dourado.',
 }
 
 export function loadRsvp() {

@@ -22,9 +22,9 @@
   --vn-blue-deep: #1a3a6c;
   --vn-blue-mid: #2d5a9e;
   --vn-blue-light: #4a7ab8;
-  --vn-cream: #f5f0e8;
-  --vn-paper: #fffaf4;
-  --vn-paper-shadow: #ebe4d8;
+  --vn-cream: #faf6f0;
+  --vn-paper: #fffdf9;
+  --vn-paper-shadow: #f0e9df;
   --vn-gold: #d4a843;
   --vn-gold-soft: #e8c97a;
   --vn-gold-glow: rgba(212, 168, 67, 0.35);
@@ -35,7 +35,7 @@
   --vn-ink-soft: #3d5278;
   --vn-ink-muted: #5c6d8a;
   --vn-gradient-sky: linear-gradient(180deg, #061229 0%, #0a1c3d 42%, #081428 100%);
-  --vn-gradient-paper: linear-gradient(165deg, #fffaf4 0%, #f5f0e8 48%, #ebe4d8 100%);
+  --vn-gradient-paper: linear-gradient(165deg, #fffefb 0%, #faf6f0 48%, #f3ebe1 100%);
   --vn-gradient-gold-line: linear-gradient(90deg, transparent, #d4a843, transparent);
   --vn-gradient-moon: radial-gradient(circle, #ffd660 0%, #ffb84d 40%, transparent 70%);
 

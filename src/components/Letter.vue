@@ -3,15 +3,14 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import gsap from 'gsap'
 import { ScrollToPlugin } from 'gsap/ScrollToPlugin'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
-import capaImage from '../assets/capa.png'
+import capaImage from '../assets/capa.webp'
 import paperTexture from '../assets/starry-night-paper.webp'
-import swirlImage from '../assets/starry-night-swirl.webp'
-import swirlTrImage from '../assets/starry-night-swirl.webp'
 import { gifts, invitation, isRsvpConfirmed, location, quote } from '../data/invite.js'
 import AmbientMusic from './AmbientMusic.vue'
 import CountdownBlock from './CountdownBlock.vue'
 import DateBadge from './DateBadge.vue'
 import FloatingGallery from './FloatingGallery.vue'
+import GiftExamplesCarousel from './GiftExamplesCarousel.vue'
 import GoldDivider from './GoldDivider.vue'
 import InviteActionModal from './InviteActionModal.vue'
 
@@ -415,19 +414,6 @@ defineExpose({
           class="letter-sheet"
           :style="{ '--paper-texture': `url(${paperTexture})` }"
         >
-          <img
-            class="letter-sheet__swirl letter-sheet__swirl--tl"
-            :src="swirlImage"
-            alt=""
-            aria-hidden="true"
-          />
-          <img
-            class="letter-sheet__swirl letter-sheet__swirl--tr"
-            :src="swirlTrImage"
-            alt=""
-            aria-hidden="true"
-          />
-
           <div ref="contentRef" class="invite-content">
             <!-- 1. Capa -->
             <section ref="coverRef" class="cover-hero" data-scroll-snap-align="start">
@@ -544,29 +530,54 @@ defineExpose({
             <!-- 8. Presentes -->
             <section class="invite-section invite-section--gifts" data-scroll-reveal>
               <h3 class="invite-section__label">{{ gifts.title }}</h3>
-              <div class="invite-gifts__sizes">
-                <p v-for="size in gifts.sizes" :key="size.label">
-                  <span class="invite-gifts__size-label">{{ size.label }}</span>
-                  <span class="invite-gifts__size-value">{{ size.value }}</span>
+              <div class="invite-gifts">
+                <p class="invite-gifts__text">{{ gifts.intro }}</p>
+
+                <div class="invite-gifts__block">
+                  <h4 class="invite-gifts__sublabel">{{ gifts.infoLabel }}</h4>
+                  <ul class="invite-gifts__sizes">
+                    <li v-for="size in gifts.sizes" :key="size.label" class="invite-gifts__size">
+                      <span class="invite-gifts__size-label">{{ size.label }}</span>
+                      <span class="invite-gifts__size-value">{{ size.value }}</span>
+                    </li>
+                  </ul>
+                </div>
+
+                <div class="invite-gifts__block invite-gifts__block--examples">
+                  <h4 class="invite-gifts__sublabel">{{ gifts.examplesLabel }}</h4>
+                  <GiftExamplesCarousel :items="gifts.suggestions" />
+                </div>
+
+                <p class="invite-gifts__text invite-gifts__text--closing">
+                  {{ gifts.closing }}
                 </p>
               </div>
-              <ul class="invite-gifts__list">
-                <li v-for="(item, index) in gifts.suggestions" :key="index">
-                  <template v-if="typeof item === 'string'">{{ item }}</template>
-                  <template v-else>
-                    {{ item.label }}
-                    <ul v-if="item.details" class="invite-gifts__sublist">
-                      <li v-for="detail in item.details" :key="detail">{{ detail }}</li>
-                    </ul>
-                  </template>
-                </li>
-              </ul>
             </section>
 
             <GoldDivider />
 
             <!-- 9. Galeria -->
             <FloatingGallery />
+
+            <GoldDivider class="invite-divider--farewell" />
+
+            <!-- 10. Encerramento -->
+            <section class="invite-section invite-section--farewell" data-scroll-reveal>
+              <p class="invite-farewell__title">{{ invitation.farewellTitle }}</p>
+              <p class="invite-farewell__message">{{ invitation.farewellMessage }}</p>
+              <p class="invite-farewell__closing">{{ invitation.closingMessage }}</p>
+              <button
+                type="button"
+                class="invite-farewell__cta"
+                :disabled="rsvpConfirmed"
+                :aria-disabled="rsvpConfirmed"
+                aria-haspopup="dialog"
+                aria-controls="invite-action-modal"
+                @click="openModal"
+              >
+                {{ ctaLabel }}
+              </button>
+            </section>
           </div>
         </div>
 
@@ -747,29 +758,9 @@ defineExpose({
   z-index: 0;
   background-image: var(--paper-texture);
   background-size: cover;
-  opacity: 0.1;
-  mix-blend-mode: multiply;
+  opacity: 0.04;
+  mix-blend-mode: soft-light;
   pointer-events: none;
-}
-
-.letter-sheet__swirl {
-  position: absolute;
-  width: 100px;
-  opacity: 0.22;
-  mix-blend-mode: screen;
-  pointer-events: none;
-  z-index: 0;
-}
-
-.letter-sheet__swirl--tl {
-  top: 2%;
-  left: -5%;
-}
-
-.letter-sheet__swirl--tr {
-  top: 0;
-  right: -5%;
-  transform: rotate(90deg);
 }
 
 .invite-content {
@@ -985,77 +976,161 @@ defineExpose({
   outline-offset: 2px;
 }
 
-.invite-gifts__sizes {
-  display: grid;
-  gap: 0.5rem;
-  margin-bottom: 1.25rem;
+.invite-gifts {
+  width: 100%;
+  margin-inline: auto;
+  text-align: center;
 }
 
-.invite-gifts__sizes p {
+.invite-gifts__text,
+.invite-gifts__block:not(.invite-gifts__block--examples) {
+  max-width: 36ch;
+  margin-inline: auto;
+  text-align: center;
+}
+
+.invite-gifts__block--examples {
+  width: 100%;
+  max-width: none;
+  margin-inline: auto;
+  text-align: center;
+}
+
+.invite-gifts__text {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.3rem;
+  font-weight: 400;
+  line-height: 1.65;
+  color: var(--vn-ink);
+  margin: 0 0 1.1rem;
+}
+
+.invite-gifts__block {
+  margin-bottom: 1.35rem;
+}
+
+.invite-gifts__sublabel {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--vn-blue-mid);
+  margin: 0 0 0.65rem;
+  text-align: center;
+}
+
+.invite-gifts__sizes {
+  list-style: none;
+  margin: 0 auto;
+  padding: 0;
   display: flex;
   justify-content: center;
-  gap: 0.75rem;
+  align-items: center;
+  gap: 1.5rem;
+  width: 100%;
+}
+
+.invite-gifts__size {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  flex: 1 1 0;
+  min-width: 0;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.2rem;
+  line-height: 1.35;
+  color: var(--vn-ink);
+  text-align: center;
 }
 
 .invite-gifts__size-label {
-  font-family: 'Outfit', sans-serif;
-  font-size: 0.85rem;
-  font-weight: 500;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--vn-blue-mid);
+  font-size: 0.95rem;
+  color: var(--vn-ink-soft);
 }
 
 .invite-gifts__size-value {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 1.25rem;
+  font-weight: 500;
   color: var(--vn-ink);
 }
 
-.invite-gifts__list {
-  list-style: none;
-  text-align: left;
-  max-width: 24ch;
+.invite-gifts__text--closing {
+  max-width: 36ch;
   margin-inline: auto;
-}
-
-.invite-gifts__list > li {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 1.25rem;
-  color: var(--vn-ink);
-  padding-left: 1.25rem;
-  position: relative;
-  margin-bottom: 0.4rem;
-}
-
-.invite-gifts__list > li::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0.55em;
-  width: 6px;
-  height: 6px;
-  background: var(--vn-gold);
-  border-radius: 50%;
-  transform: rotate(45deg);
-}
-
-.invite-gifts__sublist {
-  list-style: none;
-  margin-top: 0.25rem;
-  padding-left: 0.75rem;
-}
-
-.invite-gifts__sublist li {
-  font-size: 1.1rem;
+  margin-bottom: 0;
+  font-style: italic;
   color: var(--vn-ink-soft);
-  margin-bottom: 0.15rem;
 }
 
-.invite-gifts__sublist li::before {
-  content: '·';
-  margin-right: 0.35rem;
+:deep(.invite-divider--farewell) {
+  margin-top: 3rem;
+}
+
+.invite-section--farewell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.85rem;
+  padding-bottom: clamp(3rem, 8vw, 4.5rem);
+  text-align: center;
+}
+
+.invite-farewell__title {
+  font-family: 'Parisienne', cursive;
+  font-size: clamp(2rem, 8vw, 2.75rem);
+  font-weight: 400;
+  line-height: 1.15;
   color: var(--vn-gold);
+}
+
+.invite-farewell__message {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.3rem;
+  font-weight: 400;
+  line-height: 1.6;
+  color: var(--vn-ink-soft);
+  max-width: 34ch;
+  margin: 0;
+}
+
+.invite-farewell__closing {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.35rem;
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--vn-ink);
+  margin: 0.35rem 0 0;
+}
+
+.invite-farewell__cta {
+  margin-top: 0.15rem;
+  min-height: 48px;
+  padding: 0.75rem 1.75rem;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 500;
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+  color: var(--vn-sky-deep);
+  background: var(--vn-gold);
+  border-radius: 999px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+
+.invite-farewell__cta:hover:not(:disabled) {
+  box-shadow: 0 4px 20px var(--vn-gold-glow);
+  transform: translateY(-1px);
+}
+
+.invite-farewell__cta:focus-visible {
+  outline: 2px solid var(--vn-gold);
+  outline-offset: 3px;
+}
+
+.invite-farewell__cta:disabled {
+  opacity: 0.72;
+  cursor: default;
 }
 
 @media (max-width: 768px) {

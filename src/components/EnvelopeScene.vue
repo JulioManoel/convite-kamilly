@@ -52,7 +52,6 @@ const flapRef = ref(null)
 const flapLiningRef = ref(null)
 const sealRef = ref(null)
 const sealRingRef = ref(null)
-const glowRef = ref(null)
 const petalsRef = ref(null)
 const letterComponentRef = ref(null)
 
@@ -297,7 +296,6 @@ function snapOpenInstant() {
 
   gsap.set(introRef.value, { autoAlpha: 0, y: -12 })
   gsap.set(starsRef.value, { autoAlpha: 0 })
-  gsap.set(glowRef.value, { autoAlpha: 0 })
   gsap.set(flapRef.value, { rotationX: 180, transformOrigin: '50% 0%' })
   gsap.set(flapLiningRef.value, { autoAlpha: 1 })
   gsap.set(sealRef.value, { autoAlpha: 0 })
@@ -343,13 +341,6 @@ function playOpenSequence() {
       force3D: true,
     })
     gsap.set(letterMouthRef.value, { autoAlpha: 1 })
-    gsap.set(glowRef.value, {
-      autoAlpha: 0,
-      scale: 0.55,
-      xPercent: -50,
-      yPercent: -40,
-      force3D: true,
-    })
     gsap.set(petalsRef.value?.querySelectorAll('.petal') ?? [], {
       autoAlpha: 0,
       x: 0,
@@ -361,7 +352,6 @@ function playOpenSequence() {
     openTl = gsap.timeline({
       defaults: { ease: 'power2.out', force3D: true },
       onComplete: () => {
-        gsap.set(glowRef.value, { autoAlpha: 0 })
         letterEl?.classList.remove('is-exiting')
       },
     })
@@ -408,13 +398,6 @@ function playOpenSequence() {
       )
       .add(burstPetals, 'open+=0.12')
 
-      .fromTo(
-        glowRef.value,
-        { autoAlpha: 0, scale: 0.5 },
-        { autoAlpha: mobile ? 0.7 : 1, scale: 1.1, duration: 0.55, ease: 'power2.out' },
-        'open+=0.1',
-      )
-
       .to(
         flapRef.value,
         { rotationX: 180, duration: mobile ? 0.62 : 0.78, ease: 'power2.inOut' },
@@ -441,11 +424,6 @@ function playOpenSequence() {
       .to(
         getShellParts(),
         { autoAlpha: 0, duration: mobile ? 0.5 : 0.7, ease: 'power2.out' },
-        'shellOut',
-      )
-      .to(
-        glowRef.value,
-        { autoAlpha: 0, scale: 1.35, duration: 0.45, ease: 'power1.out' },
         'shellOut',
       )
 
@@ -483,7 +461,6 @@ onMounted(() => {
     gsap.set(introRef.value, { xPercent: -50 })
     gsap.set(sealRef.value, { xPercent: -50, yPercent: -50, z: 48 })
     gsap.set(flapLiningRef.value, { autoAlpha: 0 })
-    gsap.set(glowRef.value, { autoAlpha: 0, xPercent: -50, yPercent: -40 })
     gsap.set(introHintRef.value, { opacity: 0.55 })
     startStarMotion()
     startIdleMotion()
@@ -541,8 +518,6 @@ onUnmounted(() => {
         >
           <div ref="envelopeShadowRef" class="envelope-shadow" />
           <div ref="envelopeBodyRef" class="envelope-body" />
-
-          <div ref="glowRef" class="mouth-glow" aria-hidden="true" />
 
           <div ref="pocketRef" class="front pocket" aria-hidden="true" />
           <div ref="flapRef" class="front flap" aria-hidden="true">
@@ -725,20 +700,6 @@ onUnmounted(() => {
   background:
     linear-gradient(145deg, #9aa9ad 0%, var(--envelope) 45%, var(--envelope-dark) 100%);
   pointer-events: none;
-}
-
-.mouth-glow {
-  position: absolute;
-  left: 50%;
-  top: 18%;
-  z-index: 2;
-  width: 140%;
-  height: 110%;
-  border-radius: 50%;
-  pointer-events: none;
-  background:
-    radial-gradient(circle, rgba(255, 236, 206, 0.5) 0%, rgba(201, 164, 108, 0.22) 38%, transparent 68%);
-  will-change: transform, opacity;
 }
 
 .front {
