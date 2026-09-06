@@ -255,7 +255,7 @@ onUnmounted(() => {
               />
               <div v-else class="floating-gallery__placeholder" aria-hidden="true" />
             </div>
-            <figcaption v-if="photo.caption" class="floating-gallery__caption">
+            <figcaption class="floating-gallery__caption" aria-hidden="true">
               {{ photo.caption }}
             </figcaption>
           </figure>
@@ -291,7 +291,7 @@ onUnmounted(() => {
             />
             <div v-else class="floating-gallery__placeholder" aria-hidden="true" />
           </div>
-          <figcaption v-if="lightboxPhoto.caption" class="floating-gallery__caption">
+          <figcaption class="floating-gallery__caption" aria-hidden="true">
             {{ lightboxPhoto.caption }}
           </figcaption>
         </figure>

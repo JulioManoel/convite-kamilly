@@ -1,7 +1,14 @@
+import foto1 from '../assets/gallery/foto1.webp'
+import foto2 from '../assets/gallery/foto2.webp'
+import foto3 from '../assets/gallery/foto3.webp'
+import foto4 from '../assets/gallery/foto4.webp'
+import foto5 from '../assets/gallery/foto5.webp'
+import foto6 from '../assets/gallery/foto6.webp'
+import foto7 from '../assets/gallery/foto7.webp'
+
 /**
- * Gallery rows — put files in `public/gallery/` and set `src` like `/gallery/photo-1.webp`.
- * Leave `src` empty to keep the cream placeholder.
- * `caption` appears in the polaroid white footer (edit freely).
+ * Gallery rows — images from `src/assets/gallery/`.
+ * Leave `caption` empty to keep the polaroid white footer without text.
  * Layout: 2 / 3 / 2 — scattered “thrown” look via rotate + nudge.
  */
 export const galleryRows = [
@@ -10,18 +17,18 @@ export const galleryRows = [
     photos: [
       {
         id: 'photo-1',
-        src: '',
+        src: foto1,
         alt: 'Kamilly — momento especial',
-        caption: 'Um novo capítulo',
+        caption: '',
         rotate: -8,
         nudgeX: -6,
         nudgeY: 10,
       },
       {
         id: 'photo-2',
-        src: '',
+        src: foto2,
         alt: 'Kamilly — sorriso',
-        caption: 'Sorrisos que iluminam',
+        caption: '',
         rotate: 7,
         nudgeX: 8,
         nudgeY: -4,
@@ -33,27 +40,27 @@ export const galleryRows = [
     photos: [
       {
         id: 'photo-3',
-        src: '',
+        src: foto3,
         alt: 'Kamilly — celebração',
-        caption: 'Noite estrelada',
+        caption: '',
         rotate: 5,
         nudgeX: -10,
         nudgeY: 6,
       },
       {
         id: 'photo-4',
-        src: '',
+        src: foto4,
         alt: 'Kamilly — memória',
-        caption: 'Memórias douradas',
+        caption: '',
         rotate: -3,
         nudgeX: 0,
         nudgeY: -12,
       },
       {
         id: 'photo-5',
-        src: '',
+        src: foto5,
         alt: 'Kamilly — alegria',
-        caption: '15 anos de luz',
+        caption: '',
         rotate: 9,
         nudgeX: 10,
         nudgeY: 8,
@@ -65,18 +72,18 @@ export const galleryRows = [
     photos: [
       {
         id: 'photo-6',
-        src: '',
+        src: foto6,
         alt: 'Kamilly — amizade',
-        caption: 'Com quem amo',
+        caption: '',
         rotate: -6,
         nudgeX: -4,
         nudgeY: -6,
       },
       {
         id: 'photo-7',
-        src: '',
+        src: foto7,
         alt: 'Kamilly — festa',
-        caption: 'Vem celebrar',
+        caption: '',
         rotate: 4,
         nudgeX: 12,
         nudgeY: 10,
