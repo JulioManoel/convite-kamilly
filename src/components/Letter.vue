@@ -57,6 +57,10 @@ const sparkles = ref(
   }),
 )
 
+const SCROLL_DAMPING = 0.38
+const TOUCH_DAMPING = 0.55
+const SCROLL_LERP = 0.1
+
 let revealTl
 let sparkleTl
 let arrowTl
@@ -64,6 +68,19 @@ let coverScrollTl
 let coverObserver
 let scrollRevealObserver
 let isScrolling = false
+let scrollTarget = 0
+let scrollCurrent = 0
+let scrollRafId = 0
+let isApplyingScroll = false
+let removeScrollDamping = null
+let touchStartX = 0
+let touchStartY = 0
+let touchLastY = 0
+let touchAxis = null
+let touchIgnore = false
+let touchVelocity = 0
+let touchStamp = 0
+let isTouchDragging = false
 
 const ctaLabel = computed(() =>
   rsvpConfirmed.value ? 'Presença confirmada' : 'Confirmar presença',
@@ -158,6 +175,7 @@ function presentInvite() {
   requestAnimationFrame(() => {
     setupCoverScrollTransition()
     setupScrollReveal()
+    setupScrollDamping()
     ScrollTrigger.refresh()
   })
 }
@@ -205,7 +223,7 @@ function setupCoverScrollTransition() {
       scroller: sheet,
       start: 'top top',
       end: 'bottom top',
-      scrub: 0.85,
+      scrub: 1.2,
     },
   })
 
@@ -246,6 +264,7 @@ function scrollToContent() {
   const tl = gsap.timeline({
     onComplete: () => {
       isScrolling = false
+      syncScrollPosition(sheet)
       arrowTl?.resume()
     },
   })
@@ -343,6 +362,187 @@ function setupScrollReveal() {
   })
 }
 
+function getSheetScrollMax(sheet) {
+  return Math.max(0, sheet.scrollHeight - sheet.clientHeight)
+}
+
+function syncScrollPosition(sheet) {
+  scrollCurrent = sheet.scrollTop
+  scrollTarget = sheet.scrollTop
+}
+
+function setSheetScrollTop(sheet, value) {
+  const max = getSheetScrollMax(sheet)
+  const next = Math.min(max, Math.max(0, value))
+  isApplyingScroll = true
+  sheet.scrollTop = next
+  scrollCurrent = next
+  scrollTarget = next
+  isApplyingScroll = false
+  return next
+}
+
+function shouldIgnoreTouchTarget(target) {
+  if (!(target instanceof Element)) return false
+  const tag = target.tagName
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable) {
+    return true
+  }
+  return Boolean(target.closest('.gift-carousel__track, [data-no-scroll-damp]'))
+}
+
+function applyScrollDelta(deltaY, damping, { immediate = false } = {}) {
+  const sheet = letterSheetRef.value
+  if (!sheet) return
+
+  const max = getSheetScrollMax(sheet)
+  scrollTarget = Math.min(max, Math.max(0, scrollTarget + deltaY * damping))
+
+  if (immediate) {
+    setSheetScrollTop(sheet, scrollTarget)
+    return
+  }
+
+  if (!scrollRafId) {
+    scrollRafId = requestAnimationFrame(tickScrollDamping)
+  }
+}
+
+function tickScrollDamping() {
+  const sheet = letterSheetRef.value
+  if (!sheet) {
+    scrollRafId = 0
+    return
+  }
+
+  const delta = scrollTarget - scrollCurrent
+  if (Math.abs(delta) < 0.4) {
+    setSheetScrollTop(sheet, scrollTarget)
+    scrollRafId = 0
+    return
+  }
+
+  scrollCurrent += delta * SCROLL_LERP
+  isApplyingScroll = true
+  sheet.scrollTop = scrollCurrent
+  isApplyingScroll = false
+  scrollRafId = requestAnimationFrame(tickScrollDamping)
+}
+
+function onSheetWheel(event) {
+  const sheet = letterSheetRef.value
+  if (!sheet || prefersReducedMotion() || isScrolling) return
+  if (Math.abs(event.deltaX) > Math.abs(event.deltaY)) return
+
+  event.preventDefault()
+  applyScrollDelta(event.deltaY, SCROLL_DAMPING)
+}
+
+function onSheetTouchStart(event) {
+  if (!event.touches.length || prefersReducedMotion() || isScrolling) return
+
+  const sheet = letterSheetRef.value
+  if (!sheet) return
+
+  const touch = event.touches[0]
+  touchStartX = touch.clientX
+  touchStartY = touch.clientY
+  touchLastY = touch.clientY
+  touchAxis = null
+  touchIgnore = shouldIgnoreTouchTarget(event.target)
+  touchVelocity = 0
+  touchStamp = event.timeStamp
+  isTouchDragging = false
+
+  if (scrollRafId) {
+    cancelAnimationFrame(scrollRafId)
+    scrollRafId = 0
+  }
+  syncScrollPosition(sheet)
+}
+
+function onSheetTouchMove(event) {
+  if (touchIgnore || !event.touches.length || prefersReducedMotion() || isScrolling) return
+
+  const sheet = letterSheetRef.value
+  if (!sheet) return
+
+  const touch = event.touches[0]
+
+  if (touchAxis === null) {
+    const dx = touch.clientX - touchStartX
+    const dy = touch.clientY - touchStartY
+    if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return
+
+    touchAxis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y'
+    if (touchAxis === 'x') {
+      touchIgnore = true
+      return
+    }
+  }
+
+  if (touchAxis !== 'y') return
+
+  event.preventDefault()
+  isTouchDragging = true
+
+  const now = event.timeStamp
+  const dt = Math.max(1, now - touchStamp)
+  const deltaY = touchLastY - touch.clientY
+  touchVelocity = deltaY / dt
+  touchLastY = touch.clientY
+  touchStamp = now
+
+  // Apply directly while dragging so the cover can be left in one gesture
+  applyScrollDelta(deltaY, TOUCH_DAMPING, { immediate: true })
+}
+
+function onSheetTouchEnd() {
+  if (isTouchDragging && !touchIgnore && touchAxis === 'y' && Math.abs(touchVelocity) > 0.12) {
+    applyScrollDelta(touchVelocity * 160, TOUCH_DAMPING)
+  }
+
+  touchAxis = null
+  touchIgnore = false
+  touchVelocity = 0
+  isTouchDragging = false
+}
+
+function onSheetScroll() {
+  const sheet = letterSheetRef.value
+  if (!sheet || isApplyingScroll || scrollRafId || isTouchDragging) return
+  syncScrollPosition(sheet)
+}
+
+function setupScrollDamping() {
+  removeScrollDamping?.()
+  removeScrollDamping = null
+
+  const sheet = letterSheetRef.value
+  if (!sheet || prefersReducedMotion()) return
+
+  syncScrollPosition(sheet)
+  sheet.addEventListener('wheel', onSheetWheel, { passive: false })
+  sheet.addEventListener('touchstart', onSheetTouchStart, { passive: true })
+  sheet.addEventListener('touchmove', onSheetTouchMove, { passive: false })
+  sheet.addEventListener('touchend', onSheetTouchEnd, { passive: true })
+  sheet.addEventListener('touchcancel', onSheetTouchEnd, { passive: true })
+  sheet.addEventListener('scroll', onSheetScroll, { passive: true })
+
+  removeScrollDamping = () => {
+    sheet.removeEventListener('wheel', onSheetWheel)
+    sheet.removeEventListener('touchstart', onSheetTouchStart)
+    sheet.removeEventListener('touchmove', onSheetTouchMove)
+    sheet.removeEventListener('touchend', onSheetTouchEnd)
+    sheet.removeEventListener('touchcancel', onSheetTouchEnd)
+    sheet.removeEventListener('scroll', onSheetScroll)
+    if (scrollRafId) {
+      cancelAnimationFrame(scrollRafId)
+      scrollRafId = 0
+    }
+  }
+}
+
 function onCtaHover(event, enter) {
   if (prefersReducedMotion() || rsvpConfirmed.value) return
   gsap.to(event.currentTarget, {
@@ -359,6 +559,7 @@ onMounted(() => {
   rsvpConfirmed.value = isRsvpConfirmed()
   setupArrowAnimation()
   setupCoverObserver()
+  setupScrollDamping()
 })
 
 onUnmounted(() => {
@@ -369,6 +570,8 @@ onUnmounted(() => {
   coverScrollTl?.kill()
   coverObserver?.disconnect()
   scrollRevealObserver?.disconnect()
+  removeScrollDamping?.()
+  removeScrollDamping = null
   ScrollTrigger.getAll().forEach((trigger) => trigger.kill())
 })
 
@@ -422,12 +625,13 @@ defineExpose({
         >
           <div ref="contentRef" class="invite-content">
             <!-- 1. Capa -->
-            <section ref="coverRef" class="cover-hero" data-scroll-snap-align="start">
+            <section ref="coverRef" class="cover-hero">
               <img
                 ref="coverImageRef"
                 class="cover-hero__image"
                 :src="capaImage"
                 alt="Convite Kamilly XV — Noite Estrelada"
+                draggable="false"
               />
               <div ref="coverVeilRef" class="cover-hero__veil" aria-hidden="true" />
 
@@ -756,9 +960,9 @@ defineExpose({
   border-radius: 8px;
   background: var(--vn-gradient-paper);
   box-shadow: 0 28px 56px rgba(6, 18, 41, 0.35);
-  scroll-snap-type: y proximity;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
+  touch-action: pan-y;
 }
 
 .letter-sheet::before {
@@ -791,9 +995,9 @@ defineExpose({
   width: 100%;
   margin: 0;
   overflow: hidden;
-  scroll-snap-align: start;
   flex-shrink: 0;
   contain: layout style paint;
+  touch-action: pan-y;
 }
 
 .cover-hero__image {
@@ -805,6 +1009,9 @@ defineExpose({
   object-position: center 32%;
   display: block;
   will-change: transform, opacity;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
 }
 
 .cover-hero__veil {
