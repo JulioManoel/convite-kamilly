@@ -1,8 +1,11 @@
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import gsap from 'gsap'
+import { Flip } from 'gsap/Flip'
 import Letter from './Letter.vue'
 import sealImage from '../assets/k.webp'
+
+gsap.registerPlugin(Flip)
 
 const MOBILE_QUERY = '(max-width: 768px)'
 const STAR_COUNT = 48
@@ -169,61 +172,27 @@ function startIdleMotion() {
     )
 }
 
-function waitFrames(count = 2) {
-  return new Promise((resolve) => {
-    const step = (left) => {
-      if (left <= 0) resolve()
-      else requestAnimationFrame(() => step(left - 1))
-    }
-    step(count)
-  })
-}
-
-async function animateSheetFromRect(first, { duration = 1.05, ease = 'expo.inOut' } = {}) {
-  const sheet = letterSheetRef.value
-  if (!sheet || prefersReducedMotion()) return
-
-  await nextTick()
-  await waitFrames(2)
-
-  const last = sheet.getBoundingClientRect()
-  if (!last.width || !last.height) return
-
-  const dx = first.left - last.left
-  const dy = first.top - last.top
-  const sx = first.width / last.width
-  const sy = first.height / last.height
-
-  await gsap.fromTo(
-    sheet,
-    {
-      x: dx,
-      y: dy,
-      scaleX: sx,
-      scaleY: sy,
-      transformOrigin: '0% 0%',
-    },
-    {
-      x: 0,
-      y: 0,
-      scaleX: 1,
-      scaleY: 1,
-      duration,
-      ease,
-      clearProps: 'transform',
-    },
-  )
-}
-
 function lockPageOverflow() {
   document.documentElement.style.overflow = 'hidden'
   document.body.style.overflow = 'hidden'
 }
 
+function playFlipFromState(state, { duration, ease } = {}) {
+  return new Promise((resolve) => {
+    Flip.from(state, {
+      duration,
+      ease,
+      absolute: true,
+      scale: true,
+      onComplete: resolve,
+    })
+  })
+}
+
 async function centerInvite({ present = false, expand = false } = {}) {
   const sheet = letterSheetRef.value
-  const first = sheet?.getBoundingClientRect()
   const mobile = isMobile()
+  const reduced = prefersReducedMotion()
 
   if (letterRef.value) {
     gsap.set(letterRef.value, { clearProps: 'transform,opacity,visibility' })
@@ -233,22 +202,24 @@ async function centerInvite({ present = false, expand = false } = {}) {
     letterComponentRef.value?.prepareContentReveal?.()
   }
 
+  // Capture before layout swap so Flip can invert before the first paint
+  const flipState = sheet && !reduced ? Flip.getState(sheet) : null
+
   isCentered.value = true
   if (expand) isExpanded.value = true
   lockPageOverflow()
 
-  if (present) {
-    gsap.delayedCall(expand ? 0.28 : 0.24, () => {
-      letterComponentRef.value?.presentInvite?.()
-    })
-  }
+  await nextTick()
 
-  if (first) {
-    await animateSheetFromRect(first, {
+  if (flipState) {
+    await playFlipFromState(flipState, {
       duration: mobile ? 0.95 : expand ? 1.25 : 1.15,
       ease: mobile ? 'power3.inOut' : expand ? 'expo.inOut' : 'power4.inOut',
     })
-  } else if (present) {
+  }
+
+  // Present only after the expand finishes — avoids cover fade fighting the FLIP
+  if (present) {
     letterComponentRef.value?.presentInvite?.()
   }
 }

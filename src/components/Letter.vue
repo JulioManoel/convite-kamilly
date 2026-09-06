@@ -191,16 +191,18 @@ function playCoverEntrance() {
     return
   }
 
+  // Cover is already visible from the envelope rise — settle scale only (no opacity blink)
   gsap.set(veil, { autoAlpha: 0 })
+  gsap.set(image, { autoAlpha: 1 })
   gsap.fromTo(
     image,
-    { scale: 1.08, autoAlpha: 0 },
-    { scale: 1, autoAlpha: 1, duration: 1.05, ease: 'power2.out' },
+    { scale: 1.04 },
+    { scale: 1, duration: 0.9, ease: 'power2.out' },
   )
   gsap.fromTo(
     footer,
     { autoAlpha: 0, y: 18 },
-    { autoAlpha: 1, y: 0, duration: 0.75, ease: 'power3.out', delay: 0.45 },
+    { autoAlpha: 1, y: 0, duration: 0.75, ease: 'power3.out', delay: 0.12 },
   )
 }
 
@@ -1040,6 +1042,8 @@ defineExpose({
   z-index: 2;
   background: linear-gradient(to top, rgba(6, 18, 41, 0.55) 0%, transparent 100%);
   padding-top: 2.5rem;
+  opacity: 0;
+  visibility: hidden;
   will-change: transform, opacity;
 }
 
